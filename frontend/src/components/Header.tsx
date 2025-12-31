@@ -41,7 +41,11 @@ export function Header() {
         <nav className="nav">
           {authenticated ? (
             <div className="nav-authenticated">
-              <span className="user-info">Welcome, {user?.username || 'User'}</span>
+              <a href="/" className="nav-item">Home</a>
+              <a href="/videos" className="nav-item">All Videos</a>
+              <a href="/my-videos" className="nav-item">My Videos</a>
+              <a href="/upload" className="nav-item upload-link">+ Upload</a>
+              <span className="user-info">👤 {user?.username || 'User'}</span>
               <button onClick={handleLogout} className="logout-btn">
                 Logout
               </button>

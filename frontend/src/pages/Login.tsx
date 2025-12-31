@@ -28,11 +28,11 @@ export function Login() {
       const response = await authAPI.login(formData.email, formData.password);
       setAuthToken(response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
-      alert('Login successful!');
-      navigate('/');
+      
+      // Redirect to home after login
+      navigate('/', { replace: true });
     } catch (err: any) {
       setError(err.response?.data?.error || 'Login failed');
-    } finally {
       setLoading(false);
     }
   };
@@ -44,12 +44,13 @@ export function Login() {
         {error && <div className="error-message">{error}</div>}
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label>Email</label>
+            <label>Email Address</label>
             <input
               type="email"
               name="email"
               value={formData.email}
               onChange={handleChange}
+              placeholder="you@example.com"
               required
             />
           </div>
@@ -60,6 +61,7 @@ export function Login() {
               name="password"
               value={formData.password}
               onChange={handleChange}
+              placeholder="Enter your password"
               required
             />
           </div>
