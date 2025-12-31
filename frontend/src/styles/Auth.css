@@ -2,24 +2,40 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 100vh;
+  min-height: calc(100vh - 80px);
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 40px 20px;
+  width: 100%;
 }
 
 .auth-card {
   background: white;
-  padding: 40px;
-  border-radius: 8px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  padding: 50px;
+  border-radius: 12px;
+  box-shadow: 0 15px 50px rgba(0, 0, 0, 0.3);
   width: 100%;
-  max-width: 400px;
+  max-width: 500px;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .auth-card h2 {
   text-align: center;
   color: #333;
-  margin-bottom: 30px;
-  font-size: 24px;
+  margin-bottom: 35px;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
 }
 
 .form-group {
@@ -36,12 +52,13 @@
 
 .form-group input {
   width: 100%;
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
-  transition: border-color 0.3s;
+  padding: 14px 16px;
+  border: 2px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 16px;
+  transition: all 0.3s;
   box-sizing: border-box;
+  font-family: inherit;
 }
 
 .form-group input:focus {
@@ -52,19 +69,26 @@
 
 button {
   width: 100%;
-  padding: 12px;
+  padding: 14px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: opacity 0.3s;
+  transition: all 0.3s;
+  letter-spacing: 0.5px;
 }
 
 button:hover:not(:disabled) {
   opacity: 0.9;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 button:disabled {
@@ -80,6 +104,7 @@ button:disabled {
   margin-bottom: 20px;
   font-size: 14px;
   border-left: 4px solid #c33;
+  animation: slideIn 0.3s ease-out;
 }
 
 .auth-link {
@@ -93,8 +118,40 @@ button:disabled {
   color: #667eea;
   text-decoration: none;
   font-weight: 600;
+  transition: color 0.3s;
 }
 
 .auth-link a:hover {
+  color: #764ba2;
   text-decoration: underline;
+}
+
+@media (max-width: 480px) {
+  .auth-container {
+    padding: 20px 10px;
+  }
+
+  .auth-card 30px 20px;
+    max-width: 100%;
+  }
+
+  .auth-card h2 {
+    font-size: 24px;
+    margin-bottom: 25px;
+  }
+
+  .form-group input {
+    padding: 12px 14px;
+    font-size: 16px;
+  }
+
+  button {
+    padding: 12px;
+    font-size: 14px;
+  }
+
+  .auth-link {
+    font-size: 13
+    margin-bottom: 25px;
+  }
 }

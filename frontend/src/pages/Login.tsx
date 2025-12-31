@@ -27,6 +27,7 @@ export function Login() {
     try {
       const response = await authAPI.login(formData.email, formData.password);
       setAuthToken(response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
       alert('Login successful!');
       navigate('/');
     } catch (err: any) {

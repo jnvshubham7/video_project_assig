@@ -1,15 +1,18 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
+import { Home } from './pages/Home';
+import { Header } from './components/Header';
 import './App.css';
 
 function App() {
   return (
     <Router>
+      <Header />
       <Routes>
+        <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/" element={<div style={{ textAlign: 'center', marginTop: '50px' }}><h1>Welcome to Video Platform</h1><p><a href="/login">Login</a> or <a href="/register">Register</a></p></div>} />
       </Routes>
     </Router>
   );

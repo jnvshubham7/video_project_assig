@@ -27,7 +27,7 @@ export function Register() {
     setLoading(true);
 
     try {
-      await authAPI.register(
+      const response = await authAPI.register(
         formData.username,
         formData.email,
         formData.password,
