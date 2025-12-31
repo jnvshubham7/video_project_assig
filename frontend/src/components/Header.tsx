@@ -1,11 +1,12 @@
-import { useNavigate } from 'react-router-dom';
-import { isAuthenticated, clearAuthToken, getAuthToken } from '../services/authService';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { clearAuthToken, getAuthToken } from '../services/authService';
 import { useState, useEffect } from 'react';
 import './Header.css';
 
 export function Header() {
   const navigate = useNavigate();
-  const [authenticated, setAuthenticated] = useState(false);
+  const location = useLocation();
+  const [authenticated, setAuthenticated] = useState(() => !!getAuthToken());
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
@@ -21,6 +22,25 @@ export function Header() {
         setUser(null);
       }
     }
+  }, [location]);
+
+  // Listen to storage changes for real-time updates
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const token = getAuthToken();
+      setAuthenticated(!!token);
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        try {
+          setUser(JSON.parse(storedUser));
+        } catch {
+          setUser(null);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   const handleLogout = () => {
@@ -31,10 +51,14 @@ export function Header() {
     navigate('/login');
   };
 
+  const handleLogoClick = () => {
+    navigate('/');
+  };
+
   return (
     <header className="header">
       <div className="header-container">
-        <div className="logo">
+        <div className="logo" onClick={handleLogoClick}>
           <h1>🎬 Video Platform</h1>
         </div>
         

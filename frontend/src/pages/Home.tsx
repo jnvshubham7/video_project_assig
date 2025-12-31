@@ -1,14 +1,28 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { isAuthenticated } from '../services/authService';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { getAuthToken } from '../services/authService';
 import '../styles/Home.css';
 
 export function Home() {
   const navigate = useNavigate();
-  const [authenticated, setAuthenticated] = useState(false);
+  const location = useLocation();
+  const [authenticated, setAuthenticated] = useState(() => !!getAuthToken());
 
   useEffect(() => {
-    setAuthenticated(isAuthenticated());
+    // Check authentication whenever location changes or component mounts
+    const token = getAuthToken();
+    setAuthenticated(!!token);
+  }, [location]);
+
+  // Also listen to storage changes for real-time updates
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const token = getAuthToken();
+      setAuthenticated(!!token);
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   if (!authenticated) {

@@ -31,7 +31,6 @@ export function MyVideos() {
       const response = await videoAPI.getUserVideos();
       setVideos(response.data.videos);
       setRetryCount(0);
-      addToast(`Loaded ${response.data.videos.length} video(s)`, 'info', 2000);
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || 'Failed to load videos';
       setError(errorMsg);

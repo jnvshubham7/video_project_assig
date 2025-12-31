@@ -2,12 +2,10 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { videoAPI } from '../services/videoService';
 import { ProgressBar } from '../components/ProgressBar';
-import { useToast, ToastContainer } from '../components/Toast';
 import '../styles/Upload.css';
 
 export function UploadVideo() {
   const navigate = useNavigate();
-  const { toasts, addToast, removeToast } = useToast();
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -33,12 +31,10 @@ export function UploadVideo() {
     if (file) {
       if (!file.type.startsWith('video/')) {
         setError('Please select a valid video file');
-        addToast('Invalid file type. Please select a video.', 'error');
         return;
       }
       if (file.size > 500 * 1024 * 1024) {
         setError('File size must be less than 500MB');
-        addToast('File size exceeds 500MB limit', 'error');
         return;
       }
       setFormData(prev => ({
@@ -47,26 +43,22 @@ export function UploadVideo() {
       }));
       setFileName(file.name);
       setError('');
-      addToast(`File selected: ${file.name}`, 'info');
     }
   };
 
   const validateForm = (): boolean => {
     if (!formData.title.trim()) {
       setError('Title is required');
-      addToast('Please enter a video title', 'warning');
       return false;
     }
 
     if (formData.title.trim().length < 3) {
       setError('Title must be at least 3 characters');
-      addToast('Title too short (minimum 3 characters)', 'warning');
       return false;
     }
 
     if (!formData.video) {
       setError('Video file is required');
-      addToast('Please select a video file to upload', 'warning');
       return false;
     }
 
@@ -95,12 +87,10 @@ export function UploadVideo() {
         setUploadProgress(progress);
       });
       
-      addToast('Video uploaded successfully!', 'success');
       navigate('/my-videos');
     } catch (err: any) {
       const errorMessage = err.response?.data?.error || 'Upload failed. Please try again.';
       setError(errorMessage);
-      addToast(errorMessage, 'error');
       console.error('Upload error:', err);
     } finally {
       setLoading(false);
@@ -110,7 +100,6 @@ export function UploadVideo() {
 
   return (
     <div className="upload-container">
-      <ToastContainer toasts={toasts} onClose={removeToast} />
       <div className="upload-card">
         <h2>Upload Video</h2>
         
