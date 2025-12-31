@@ -2,6 +2,12 @@ import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
+// Helper to get auth token
+const getAuthHeader = () => {
+  const token = localStorage.getItem('token');
+  return token ? { 'Authorization': `Bearer ${token}` } : {};
+};
+
 // Retry logic with exponential backoff
 const retryRequest = async (fn: () => Promise<any>, maxRetries = 3, delay = 1000) => {
   for (let i = 0; i < maxRetries; i++) {
@@ -27,7 +33,8 @@ export const videoAPI = {
     return retryRequest(() => 
       axios.post(`${API_BASE_URL}/videos/upload`, formData, {
         headers: {
-          'Content-Type': 'multipart/form-data'
+          'Content-Type': 'multipart/form-data',
+          ...getAuthHeader()
         },
         onUploadProgress: (progressEvent: any) => {
           if (progressEvent.total) {
@@ -41,7 +48,9 @@ export const videoAPI = {
 
   getUserVideos: () => {
     return retryRequest(() => 
-      axios.get(`${API_BASE_URL}/videos/user/myvideos`)
+      axios.get(`${API_BASE_URL}/videos/user/myvideos`, {
+        headers: getAuthHeader()
+      })
     );
   },
 
@@ -62,13 +71,18 @@ export const videoAPI = {
       axios.put(`${API_BASE_URL}/videos/${id}`, {
         title,
         description
+      }, {
+        headers: getAuthHeader()
       })
     );
   },
 
   deleteVideo: (id: string) => {
     return retryRequest(() => 
-      axios.delete(`${API_BASE_URL}/videos/${id}`)
+      axios.delete(`${API_BASE_URL}/videos/${id}`, {
+        headers: getAuthHeader()
+      })
     );
   }
 };
+

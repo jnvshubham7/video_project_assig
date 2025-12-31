@@ -1,6 +1,12 @@
 const Video = require('../models/Video');
-const fs = require('fs');
-const path = require('path');
+const cloudinary = require('cloudinary').v2;
+
+// Configure Cloudinary (in case it's not already configured)
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 // Upload video
 exports.uploadVideo = async (req, res) => {
@@ -8,10 +14,6 @@ exports.uploadVideo = async (req, res) => {
     const { title, description } = req.body;
 
     if (!title) {
-      // Delete uploaded file if title is missing
-      if (req.file) {
-        fs.unlinkSync(req.file.path);
-      }
       return res.status(400).json({ error: 'Video title is required' });
     }
 
@@ -19,11 +21,16 @@ exports.uploadVideo = async (req, res) => {
       return res.status(400).json({ error: 'No video file provided' });
     }
 
+    // Cloudinary file info from multer storage
+    const cloudinaryUrl = req.file.path; // Full URL from Cloudinary
+    const cloudinaryPublicId = req.file.filename; // Public ID from Cloudinary
+
     const video = new Video({
       title,
       description: description || '',
-      filename: req.file.filename,
-      filepath: `/uploads/videos/${req.file.filename}`,
+      filename: req.file.originalname,
+      filepath: cloudinaryUrl, // Store Cloudinary URL
+      cloudinaryPublicId: cloudinaryPublicId, // Store public ID for deletion
       userId: req.userId,
       size: req.file.size
     });
@@ -31,14 +38,10 @@ exports.uploadVideo = async (req, res) => {
     await video.save();
 
     res.status(201).json({
-      message: 'Video uploaded successfully',
+      message: 'Video uploaded successfully to cloud storage',
       video
     });
   } catch (error) {
-    // Clean up uploaded file on error
-    if (req.file) {
-      fs.unlinkSync(req.file.path);
-    }
     res.status(500).json({ error: error.message });
   }
 };
@@ -96,10 +99,14 @@ exports.deleteVideo = async (req, res) => {
       return res.status(403).json({ error: 'Not authorized to delete this video' });
     }
 
-    // Delete file from filesystem
-    const filePath = path.join(__dirname, '../../uploads/videos', video.filename);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
+    // Delete from Cloudinary if public ID exists
+    if (video.cloudinaryPublicId) {
+      try {
+        await cloudinary.uploader.destroy(video.cloudinaryPublicId, { resource_type: 'video' });
+      } catch (cloudinaryError) {
+        console.error('Error deleting from Cloudinary:', cloudinaryError);
+        // Continue with deletion even if Cloudinary deletion fails
+      }
     }
 
     // Delete from database

@@ -76,7 +76,7 @@ export function VideoPlayer() {
           autoPlay
           style={{ width: '100%', maxHeight: '600px', backgroundColor: '#000' }}
         >
-          <source src={`http://localhost:5000${video.filepath}`} type="video/mp4" />
+          <source src={video.filepath} type="video/mp4" />
           Your browser does not support the video tag.
         </video>
       </div>

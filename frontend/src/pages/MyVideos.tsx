@@ -90,7 +90,7 @@ export function MyVideos() {
           {videos.map(video => (
             <div key={video._id} className="video-card">
               <div className="video-thumb">
-                <video src={`http://localhost:5000${video.filepath}`} />
+                <video src={video.filepath} />
                 <div className="video-overlay">
                   <a href={`/video/${video._id}`} className="play-btn">▶</a>
                 </div>
