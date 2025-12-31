@@ -1,0 +1,35 @@
+# .gitignore
+
+# Node modules
+node_modules/
+
+# Environment variables
+.env
+.env.local
+
+# Build directories
+build/
+dist/
+.cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Uploads
+uploads/
+
+# OS
+.DS_Store
+Thumbs.db
+
+*.md
+*.txt
+*.pdf
+
+# Logs
+logs/
+*.log
+
