@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { authAPI, setAuthToken } from '../services/authService';
+import { authAPI } from '../services/authService';
+import { useToast, ToastContainer } from '../components/Toast';
 import '../styles/Auth.css';
 
 export function Register() {
   const navigate = useNavigate();
+  const { toasts, addToast, removeToast } = useToast();
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -19,31 +21,87 @@ export function Register() {
       ...formData,
       [e.target.name]: e.target.value
     });
+    setError('');
+  };
+
+  const validateForm = (): boolean => {
+    if (!formData.username.trim()) {
+      setError('Username is required');
+      addToast('Please enter a username', 'warning');
+      return false;
+    }
+
+    if (formData.username.trim().length < 3) {
+      setError('Username must be at least 3 characters');
+      addToast('Username too short', 'warning');
+      return false;
+    }
+
+    if (!formData.email.trim()) {
+      setError('Email is required');
+      addToast('Please enter your email', 'warning');
+      return false;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      setError('Please enter a valid email address');
+      addToast('Invalid email format', 'warning');
+      return false;
+    }
+
+    if (!formData.password) {
+      setError('Password is required');
+      addToast('Please enter a password', 'warning');
+      return false;
+    }
+
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters');
+      addToast('Password too short (minimum 6 characters)', 'warning');
+      return false;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match');
+      addToast('Password confirmation does not match', 'warning');
+      return false;
+    }
+
+    return true;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (!validateForm()) {
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const response = await authAPI.register(
+      await authAPI.register(
         formData.username,
         formData.email,
         formData.password,
         formData.confirmPassword
       );
-      alert('Registration successful! Please log in.');
-      navigate('/login');
+      addToast('Registration successful! Redirecting to login...', 'success', 3000);
+      setTimeout(() => {
+        navigate('/login');
+      }, 1500);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Registration failed');
-    } finally {
+      const errorMessage = err.response?.data?.error || 'Registration failed';
+      setError(errorMessage);
+      addToast(errorMessage, 'error');
       setLoading(false);
     }
   };
 
   return (
     <div className="auth-container">
+      <ToastContainer toasts={toasts} onClose={removeToast} />
       <div className="auth-card">
         <h2>Register</h2>
         {error && <div className="error-message">{error}</div>}
@@ -55,7 +113,9 @@ export function Register() {
               name="username"
               value={formData.username}
               onChange={handleChange}
+              placeholder="Choose a username (min 3 chars)"
               required
+              disabled={loading}
             />
           </div>
           <div className="form-group">
@@ -65,7 +125,9 @@ export function Register() {
               name="email"
               value={formData.email}
               onChange={handleChange}
+              placeholder="your@email.com"
               required
+              disabled={loading}
             />
           </div>
           <div className="form-group">
@@ -75,7 +137,9 @@ export function Register() {
               name="password"
               value={formData.password}
               onChange={handleChange}
+              placeholder="At least 6 characters"
               required
+              disabled={loading}
             />
           </div>
           <div className="form-group">
@@ -85,7 +149,9 @@ export function Register() {
               name="confirmPassword"
               value={formData.confirmPassword}
               onChange={handleChange}
+              placeholder="Re-enter your password"
               required
+              disabled={loading}
             />
           </div>
           <button type="submit" disabled={loading}>

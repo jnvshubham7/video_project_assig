@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { videoAPI } from '../services/videoService';
+import { ProgressBar } from '../components/ProgressBar';
+import { useToast, ToastContainer } from '../components/Toast';
 import '../styles/Upload.css';
 
 export function UploadVideo() {
   const navigate = useNavigate();
+  const { toasts, addToast, removeToast } = useToast();
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -13,6 +16,8 @@ export function UploadVideo() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [fileName, setFileName] = useState('');
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [retryCount, setRetryCount] = useState(0);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -20,6 +25,7 @@ export function UploadVideo() {
       ...prev,
       [name]: value
     }));
+    setError('');
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -27,10 +33,12 @@ export function UploadVideo() {
     if (file) {
       if (!file.type.startsWith('video/')) {
         setError('Please select a valid video file');
+        addToast('Invalid file type. Please select a video.', 'error');
         return;
       }
       if (file.size > 500 * 1024 * 1024) {
         setError('File size must be less than 500MB');
+        addToast('File size exceeds 500MB limit', 'error');
         return;
       }
       setFormData(prev => ({
@@ -39,24 +47,43 @@ export function UploadVideo() {
       }));
       setFileName(file.name);
       setError('');
+      addToast(`File selected: ${file.name}`, 'info');
     }
+  };
+
+  const validateForm = (): boolean => {
+    if (!formData.title.trim()) {
+      setError('Title is required');
+      addToast('Please enter a video title', 'warning');
+      return false;
+    }
+
+    if (formData.title.trim().length < 3) {
+      setError('Title must be at least 3 characters');
+      addToast('Title too short (minimum 3 characters)', 'warning');
+      return false;
+    }
+
+    if (!formData.video) {
+      setError('Video file is required');
+      addToast('Please select a video file to upload', 'warning');
+      return false;
+    }
+
+    return true;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     
-    if (!formData.title.trim()) {
-      setError('Title is required');
-      return;
-    }
-
-    if (!formData.video) {
-      setError('Video file is required');
+    if (!validateForm()) {
       return;
     }
 
     setLoading(true);
+    setUploadProgress(0);
+    setRetryCount(0);
 
     try {
       const uploadFormData = new FormData();
@@ -64,20 +91,26 @@ export function UploadVideo() {
       uploadFormData.append('description', formData.description);
       uploadFormData.append('video', formData.video);
 
-      await videoAPI.uploadVideo(uploadFormData);
+      await videoAPI.uploadVideo(uploadFormData, (progress) => {
+        setUploadProgress(progress);
+      });
       
-      alert('Video uploaded successfully!');
+      addToast('Video uploaded successfully!', 'success');
       navigate('/my-videos');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Upload failed. Please try again.');
+      const errorMessage = err.response?.data?.error || 'Upload failed. Please try again.';
+      setError(errorMessage);
+      addToast(errorMessage, 'error');
       console.error('Upload error:', err);
     } finally {
       setLoading(false);
+      setUploadProgress(0);
     }
   };
 
   return (
     <div className="upload-container">
+      <ToastContainer toasts={toasts} onClose={removeToast} />
       <div className="upload-card">
         <h2>Upload Video</h2>
         
@@ -91,9 +124,12 @@ export function UploadVideo() {
               name="title"
               value={formData.title}
               onChange={handleInputChange}
-              placeholder="Enter video title"
+              placeholder="Enter video title (min 3 characters)"
               required
+              disabled={loading}
+              maxLength={100}
             />
+            <small className="char-count">{formData.title.length}/100</small>
           </div>
 
           <div className="form-group">
@@ -104,7 +140,10 @@ export function UploadVideo() {
               onChange={handleInputChange}
               placeholder="Enter video description (optional)"
               rows={4}
+              disabled={loading}
+              maxLength={500}
             />
+            <small className="char-count">{formData.description.length}/500</small>
           </div>
 
           <div className="form-group">
@@ -116,6 +155,7 @@ export function UploadVideo() {
                 accept="video/*"
                 onChange={handleFileChange}
                 required
+                disabled={loading}
               />
               <label htmlFor="video-input" className="file-label">
                 {fileName ? (
@@ -127,8 +167,18 @@ export function UploadVideo() {
             </div>
           </div>
 
+          {loading && uploadProgress > 0 && (
+            <div className="progress-section">
+              <ProgressBar 
+                progress={uploadProgress} 
+                label="Upload Progress" 
+                showPercentage={true}
+              />
+            </div>
+          )}
+
           <button type="submit" disabled={loading || !formData.video}>
-            {loading ? 'Uploading...' : 'Upload Video'}
+            {loading ? `Uploading... ${Math.round(uploadProgress)}%` : 'Upload Video'}
           </button>
         </form>
       </div>

@@ -2,35 +2,73 @@ import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-export const videoAPI = {
-  uploadVideo: (formData: FormData) => {
-    return axios.post(`${API_BASE_URL}/videos/upload`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
+// Retry logic with exponential backoff
+const retryRequest = async (fn: () => Promise<any>, maxRetries = 3, delay = 1000) => {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      if (i === maxRetries - 1) throw error;
+      
+      // Don't retry on 4xx errors (except 408, 429)
+      const status = error.response?.status;
+      if (status && status >= 400 && status < 500 && status !== 408 && status !== 429) {
+        throw error;
       }
-    });
+      
+      // Wait before retrying
+      await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i)));
+    }
+  }
+};
+
+export const videoAPI = {
+  uploadVideo: (formData: FormData, onProgress?: (progress: number) => void) => {
+    return retryRequest(() => 
+      axios.post(`${API_BASE_URL}/videos/upload`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        },
+        onUploadProgress: (progressEvent: any) => {
+          if (progressEvent.total) {
+            const progress = (progressEvent.loaded / progressEvent.total) * 100;
+            onProgress?.(progress);
+          }
+        }
+      })
+    );
   },
 
   getUserVideos: () => {
-    return axios.get(`${API_BASE_URL}/videos/user/myvideos`);
+    return retryRequest(() => 
+      axios.get(`${API_BASE_URL}/videos/user/myvideos`)
+    );
   },
 
   getAllVideos: () => {
-    return axios.get(`${API_BASE_URL}/videos`);
+    return retryRequest(() => 
+      axios.get(`${API_BASE_URL}/videos`)
+    );
   },
 
   getVideoById: (id: string) => {
-    return axios.get(`${API_BASE_URL}/videos/${id}`);
+    return retryRequest(() => 
+      axios.get(`${API_BASE_URL}/videos/${id}`)
+    );
   },
 
   updateVideo: (id: string, title: string, description: string) => {
-    return axios.put(`${API_BASE_URL}/videos/${id}`, {
-      title,
-      description
-    });
+    return retryRequest(() => 
+      axios.put(`${API_BASE_URL}/videos/${id}`, {
+        title,
+        description
+      })
+    );
   },
 
   deleteVideo: (id: string) => {
-    return axios.delete(`${API_BASE_URL}/videos/${id}`);
+    return retryRequest(() => 
+      axios.delete(`${API_BASE_URL}/videos/${id}`)
+    );
   }
 };

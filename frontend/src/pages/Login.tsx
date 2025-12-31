@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authAPI, setAuthToken } from '../services/authService';
+import { useToast, ToastContainer } from '../components/Toast';
 import '../styles/Auth.css';
 
 export function Login() {
   const navigate = useNavigate();
+  const { toasts, addToast, removeToast } = useToast();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -17,11 +19,45 @@ export function Login() {
       ...formData,
       [e.target.name]: e.target.value
     });
+    setError('');
+  };
+
+  const validateForm = (): boolean => {
+    if (!formData.email.trim()) {
+      setError('Email is required');
+      addToast('Please enter your email', 'warning');
+      return false;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      setError('Please enter a valid email address');
+      addToast('Invalid email format', 'warning');
+      return false;
+    }
+
+    if (!formData.password) {
+      setError('Password is required');
+      addToast('Please enter your password', 'warning');
+      return false;
+    }
+
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters');
+      addToast('Password too short', 'warning');
+      return false;
+    }
+
+    return true;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (!validateForm()) {
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -29,16 +65,20 @@ export function Login() {
       setAuthToken(response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
       
+      addToast(`Welcome back, ${response.data.user.username}!`, 'success', 3000);
       // Redirect to home after login
       navigate('/', { replace: true });
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Login failed');
+      const errorMessage = err.response?.data?.error || 'Login failed';
+      setError(errorMessage);
+      addToast(errorMessage, 'error');
       setLoading(false);
     }
   };
 
   return (
     <div className="auth-container">
+      <ToastContainer toasts={toasts} onClose={removeToast} />
       <div className="auth-card">
         <h2>Login</h2>
         {error && <div className="error-message">{error}</div>}
@@ -52,6 +92,7 @@ export function Login() {
               onChange={handleChange}
               placeholder="you@example.com"
               required
+              disabled={loading}
             />
           </div>
           <div className="form-group">
@@ -63,6 +104,7 @@ export function Login() {
               onChange={handleChange}
               placeholder="Enter your password"
               required
+              disabled={loading}
             />
           </div>
           <button type="submit" disabled={loading}>

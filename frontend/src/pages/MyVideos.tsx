@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { videoAPI } from '../services/videoService';
+import { useToast, ToastContainer } from '../components/Toast';
 import '../styles/Videos.css';
 
 interface Video {
@@ -13,9 +14,11 @@ interface Video {
 }
 
 export function MyVideos() {
+  const { toasts, addToast, removeToast } = useToast();
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     fetchVideos();
@@ -24,41 +27,60 @@ export function MyVideos() {
   const fetchVideos = async () => {
     try {
       setLoading(true);
+      setError('');
       const response = await videoAPI.getUserVideos();
       setVideos(response.data.videos);
+      setRetryCount(0);
+      addToast(`Loaded ${response.data.videos.length} video(s)`, 'info', 2000);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to load videos');
+      const errorMsg = err.response?.data?.error || 'Failed to load videos';
+      setError(errorMsg);
+      addToast(errorMsg, 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (videoId: string) => {
-    if (window.confirm('Are you sure you want to delete this video?')) {
+  const handleDelete = async (videoId: string, videoTitle: string) => {
+    if (window.confirm(`Delete "${videoTitle}"? This action cannot be undone.`)) {
       try {
         await videoAPI.deleteVideo(videoId);
         setVideos(videos.filter(v => v._id !== videoId));
-        alert('Video deleted successfully');
+        addToast('Video deleted successfully', 'success');
       } catch (err: any) {
-        setError(err.response?.data?.error || 'Failed to delete video');
+        const errorMsg = err.response?.data?.error || 'Failed to delete video';
+        addToast(errorMsg, 'error');
       }
     }
   };
 
   if (loading) {
-    return <div className="loading">Loading videos...</div>;
+    return (
+      <div className="videos-container">
+        <div className="loading-spinner">
+          <div className="spinner"></div>
+          <p>Loading your videos...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="videos-container">
+      <ToastContainer toasts={toasts} onClose={removeToast} />
       <div className="videos-header">
         <h2>My Videos</h2>
         <a href="/upload" className="upload-btn">+ Upload New Video</a>
       </div>
 
-      {error && <div className="error-message">{error}</div>}
+      {error && (
+        <div className="error-section">
+          <div className="error-message">{error}</div>
+          <button onClick={fetchVideos} className="retry-btn">Retry</button>
+        </div>
+      )}
 
-      {videos.length === 0 ? (
+      {!error && videos.length === 0 ? (
         <div className="no-videos">
           <p>No videos uploaded yet</p>
           <a href="/upload" className="upload-link">Upload your first video</a>
@@ -81,7 +103,11 @@ export function MyVideos() {
                   <span>📅 {new Date(video.createdAt).toLocaleDateString()}</span>
                 </div>
                 <div className="video-actions">
-                  <button onClick={() => handleDelete(video._id)} className="delete-btn">
+                  <button 
+                    className="delete-btn"
+                    onClick={() => handleDelete(video._id, video.title)}
+                    title="Delete video"
+                  >
                     🗑️ Delete
                   </button>
                 </div>
