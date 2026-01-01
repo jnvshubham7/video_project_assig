@@ -54,10 +54,26 @@ io.on('connection', (socket) => {
   });
 });
 
-// Connect to MongoDB
+// Connect to MongoDB (validate env and support common names)
+const getMongoUri = () => {
+  return process.env.MONGODB_URI || process.env.MONGO_URI || process.env.DATABASE_URL;
+};
+
 const connectDB = async () => {
+  const uri = getMongoUri();
+  if (!uri) {
+    console.error('✗ MongoDB Connection Error: no MongoDB URI found in environment.');
+    console.error('  Expected `MONGODB_URI` (or MONGO_URI / DATABASE_URL) to be set for this service/environment.');
+    console.error('  Check your Railway project -> Environments -> Variables and ensure the variable is applied to this service.');
+    process.exit(1);
+  }
+
+  // Print masked presence for easier debugging (do not show full secret)
   try {
-    await mongoose.connect(process.env.MONGODB_URI);
+    const masked = uri.length > 16 ? `${uri.slice(0,8)}...${uri.slice(-8)}` : '***masked***';
+    console.log('✓ MongoDB URI present (masked):', masked);
+
+    await mongoose.connect(uri);
     console.log('✓ MongoDB Connected');
   } catch (error) {
     console.error('✗ MongoDB Connection Error:', error.message);

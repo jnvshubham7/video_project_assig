@@ -32,9 +32,8 @@ const userSchema = new mongoose.Schema({
   }
 });
 
-// Global unique indexes - users are identity across all organizations
-userSchema.index({ email: 1 }, { unique: true });
-userSchema.index({ username: 1 }, { unique: true });
+// Note: `unique: true` is already set on the schema fields above.
+// Remove duplicate index declarations to avoid Mongoose warnings.
 
 // Hash password before saving
 userSchema.pre('save', async function(next) {
