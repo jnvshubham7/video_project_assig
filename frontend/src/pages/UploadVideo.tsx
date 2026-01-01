@@ -1,21 +1,65 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getAuthToken } from '../services/authService';
 import { videoAPI } from '../services/videoService';
 import { ProgressBar } from '../components/ProgressBar';
 import '../styles/Upload.css';
 
 export function UploadVideo() {
   const navigate = useNavigate();
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     video: null as File | null
   });
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [fileName, setFileName] = useState('');
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [retryCount, setRetryCount] = useState(0);
+
+  useEffect(() => {
+    // Check user role from localStorage or JWT
+    const token = getAuthToken();
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+
+    // Decode JWT to get user role
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      setUserRole(payload.role || null);
+    } catch {
+      console.error('Failed to decode token');
+    }
+    setLoading(false);
+  }, [navigate]);
+
+  if (loading) {
+    return <div className="upload-container"><div className="upload-card"><p>Loading...</p></div></div>;
+  }
+
+  if (userRole === 'viewer') {
+    return (
+      <div className="upload-container">
+        <div className="upload-card">
+          <h2>Upload Video</h2>
+          <div className="error-message">
+            <strong>Access Denied</strong><br />
+            Viewers cannot upload videos. Contact your organization admin to change your role to Editor or Admin.
+          </div>
+          <button
+            onClick={() => navigate('/my-videos')}
+            className="back-btn"
+          >
+            Back to My Videos
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -73,27 +117,29 @@ export function UploadVideo() {
       return;
     }
 
-    setLoading(true);
+    setIsSubmitting(true);
     setUploadProgress(0);
-    setRetryCount(0);
 
     try {
       const uploadFormData = new FormData();
       uploadFormData.append('title', formData.title);
       uploadFormData.append('description', formData.description);
-      uploadFormData.append('video', formData.video);
+      if (formData.video) {
+        uploadFormData.append('video', formData.video);
+      }
 
       await videoAPI.uploadVideo(uploadFormData, (progress) => {
         setUploadProgress(progress);
       });
       
       navigate('/my-videos');
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.error || 'Upload failed. Please try again.';
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: string } } };
+      const errorMessage = error.response?.data?.error || 'Upload failed. Please try again.';
       setError(errorMessage);
       console.error('Upload error:', err);
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
       setUploadProgress(0);
     }
   };
@@ -115,7 +161,7 @@ export function UploadVideo() {
               onChange={handleInputChange}
               placeholder="Enter video title (min 3 characters)"
               required
-              disabled={loading}
+              disabled={isSubmitting}
               maxLength={100}
             />
             <small className="char-count">{formData.title.length}/100</small>
@@ -129,7 +175,7 @@ export function UploadVideo() {
               onChange={handleInputChange}
               placeholder="Enter video description (optional)"
               rows={4}
-              disabled={loading}
+              disabled={isSubmitting}
               maxLength={500}
             />
             <small className="char-count">{formData.description.length}/500</small>
@@ -144,7 +190,7 @@ export function UploadVideo() {
                 accept="video/*"
                 onChange={handleFileChange}
                 required
-                disabled={loading}
+                disabled={isSubmitting}
               />
               <label htmlFor="video-input" className="file-label">
                 {fileName ? (
@@ -156,7 +202,7 @@ export function UploadVideo() {
             </div>
           </div>
 
-          {loading && uploadProgress > 0 && (
+          {isSubmitting && uploadProgress > 0 && (
             <div className="progress-section">
               <ProgressBar 
                 progress={uploadProgress} 
@@ -166,8 +212,8 @@ export function UploadVideo() {
             </div>
           )}
 
-          <button type="submit" disabled={loading || !formData.video}>
-            {loading ? `Uploading... ${Math.round(uploadProgress)}%` : 'Upload Video'}
+          <button type="submit" disabled={isSubmitting || !formData.video}>
+            {isSubmitting ? `Uploading... ${Math.round(uploadProgress)}%` : 'Upload Video'}
           </button>
         </form>
       </div>

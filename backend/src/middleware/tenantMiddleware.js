@@ -2,6 +2,34 @@ const Organization = require('../models/Organization');
 const User = require('../models/User');
 
 /**
+ * Role-to-permissions mapping
+ * Defines default permissions for each role
+ */
+const rolePermissionsMap = {
+  admin: {
+    canUploadVideos: true,
+    canDeleteVideos: true,
+    canViewAllVideos: true,
+    canManageUsers: true,
+    canManageOrganization: true
+  },
+  editor: {
+    canUploadVideos: true,
+    canDeleteVideos: true,
+    canViewAllVideos: false,
+    canManageUsers: false,
+    canManageOrganization: false
+  },
+  viewer: {
+    canUploadVideos: false,
+    canDeleteVideos: false,
+    canViewAllVideos: false,
+    canManageUsers: false,
+    canManageOrganization: false
+  }
+};
+
+/**
  * Tenant validation middleware
  * Ensures user has access to the organization
  */
@@ -25,7 +53,7 @@ const tenantMiddleware = async (req, res, next) => {
     req.organization = user.organizationId;
     req.organizationId = user.organizationId._id;
     req.userRole = user.role;
-    req.userPermissions = user.permissions;
+    req.userPermissions = rolePermissionsMap[user.role] || user.permissions;
 
     next();
   } catch (error) {
@@ -40,9 +68,20 @@ const tenantMiddleware = async (req, res, next) => {
 const checkPermission = (permission) => {
   return (req, res, next) => {
     if (!req.userPermissions || !req.userPermissions[permission]) {
-      if (permission !== 'canUploadVideos' || !req.userPermissions.canUploadVideos) {
-        return res.status(403).json({ error: `Permission denied: ${permission}` });
-      }
+      return res.status(403).json({ error: `Permission denied: ${permission}` });
+    }
+    next();
+  };
+};
+
+/**
+ * Role-based check middleware
+ * Verifies user has a minimum role level
+ */
+const requireRole = (allowedRoles) => {
+  return (req, res, next) => {
+    if (!allowedRoles.includes(req.userRole)) {
+      return res.status(403).json({ error: `Role ${req.userRole} not authorized for this action` });
     }
     next();
   };
@@ -85,6 +124,8 @@ const organizationAccess = async (req, res, next) => {
 module.exports = {
   tenantMiddleware,
   checkPermission,
+  requireRole,
   adminOnly,
-  organizationAccess
+  organizationAccess,
+  rolePermissionsMap
 };

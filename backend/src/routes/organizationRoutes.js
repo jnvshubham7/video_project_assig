@@ -2,7 +2,7 @@ const express = require('express');
 const Organization = require('../models/Organization');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/authMiddleware');
-const { tenantMiddleware, adminOnly } = require('../middleware/tenantMiddleware');
+const { tenantMiddleware, adminOnly, rolePermissionsMap } = require('../middleware/tenantMiddleware');
 
 const router = express.Router();
 
@@ -78,6 +78,14 @@ router.post('/invite', authMiddleware, tenantMiddleware, adminOnly, async (req, 
       return res.status(400).json({ error: 'Email is required' });
     }
 
+    // Validate role
+    const validRoles = ['viewer', 'editor', 'admin'];
+    if (role && !validRoles.includes(role)) {
+      return res.status(400).json({ error: 'Invalid role. Must be viewer, editor, or admin.' });
+    }
+
+    const finalRole = role || 'viewer';
+
     // Check if user exists globally
     const user = await User.findOne({ email });
     if (!user) {
@@ -94,21 +102,15 @@ router.post('/invite', authMiddleware, tenantMiddleware, adminOnly, async (req, 
       return res.status(400).json({ error: 'User is already a member of this organization' });
     }
 
-    // Add user to organization
+    // Add user to organization with role-based permissions
     user.organizationId = req.organizationId;
-    user.role = role || 'member';
-    user.permissions = {
-      canUploadVideos: true,
-      canDeleteVideos: role === 'admin',
-      canViewAllVideos: true,
-      canManageUsers: role === 'admin',
-      canManageOrganization: role === 'admin'
-    };
+    user.role = finalRole;
+    user.permissions = rolePermissionsMap[finalRole];
     await user.save();
 
     organization.members.push({
       userId: user._id,
-      role: role || 'member'
+      role: finalRole
     });
     await organization.save();
 
@@ -163,8 +165,9 @@ router.put('/members/:userId/role', authMiddleware, tenantMiddleware, adminOnly,
     const { userId } = req.params;
     const { role } = req.body;
 
-    if (!['admin', 'member'].includes(role)) {
-      return res.status(400).json({ error: 'Invalid role. Must be admin or member.' });
+    const validRoles = ['viewer', 'editor', 'admin'];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({ error: 'Invalid role. Must be viewer, editor, or admin.' });
     }
 
     const user = await User.findById(userId);
@@ -176,18 +179,12 @@ router.put('/members/:userId/role', authMiddleware, tenantMiddleware, adminOnly,
     const organization = await Organization.findById(req.organizationId);
     const adminCount = organization.members.filter(m => m.role === 'admin').length;
     
-    if (role === 'member' && adminCount === 1 && user.role === 'admin') {
+    if (role !== 'admin' && adminCount === 1 && user.role === 'admin') {
       return res.status(400).json({ error: 'Cannot remove the only admin. Assign another admin first.' });
     }
 
     user.role = role;
-    user.permissions = {
-      canUploadVideos: true,
-      canDeleteVideos: role === 'admin',
-      canViewAllVideos: true,
-      canManageUsers: role === 'admin',
-      canManageOrganization: role === 'admin'
-    };
+    user.permissions = rolePermissionsMap[role];
     await user.save();
 
     // Update in members array

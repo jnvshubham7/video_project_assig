@@ -72,15 +72,30 @@ exports.getUserVideos = async (req, res) => {
   }
 };
 
-// Get all organization videos
+// Get all organization videos with role-based filtering
 exports.getOrganizationVideos = async (req, res) => {
   try {
-    // Fetch all videos in the organization
-    const videos = await Video.find({
-      organizationId: req.organizationId
-    })
-    .populate('userId', 'username email')
-    .sort({ createdAt: -1 });
+    let query = { organizationId: req.organizationId };
+
+    // Viewers can only see public videos or videos shared with them
+    if (req.userRole === 'viewer') {
+      query = {
+        $or: [
+          { organizationId: req.organizationId, isPublic: true },
+          { organizationId: req.organizationId, allowedUsers: req.userId }
+        ]
+      };
+    }
+    // Editors can see all org videos
+    else if (req.userRole === 'editor') {
+      query = { organizationId: req.organizationId };
+    }
+    // Admins can see all org videos
+
+    // Fetch videos based on query
+    const videos = await Video.find(query)
+      .populate('userId', 'username email')
+      .sort({ createdAt: -1 });
 
     res.json({ 
       videos,
@@ -124,9 +139,16 @@ exports.getVideoById = async (req, res) => {
     const isOrganizationMember = req.organizationId && video.organizationId._id.toString() === req.organizationId.toString();
     const isPublic = video.isPublic;
     const hasExplicitAccess = req.userId && video.allowedUsers.includes(req.userId);
+    const isAdmin = req.userRole === 'admin';
+    const isEditor = req.userRole === 'editor';
 
-    // Allow access if: owner, organization member, public, or has explicit access
-    if (!isOwner && !isOrganizationMember && !isPublic && !hasExplicitAccess) {
+    // Access denied if:
+    // - Not owner AND
+    // - Not admin AND
+    // - (Not editor OR not in same org) AND
+    // - (Not public AND not explicitly shared) AND
+    // - Not in same org
+    if (!isOwner && !isAdmin && !(isEditor && isOrganizationMember) && !isPublic && !hasExplicitAccess) {
       return res.status(403).json({ error: 'Access denied to this video' });
     }
 

@@ -12,7 +12,7 @@ export function MemberManagement() {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(true);
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState<'member' | 'admin'>('member');
+  const [inviteRole, setInviteRole] = useState<'admin' | 'editor' | 'viewer'>('viewer');
   const [inviting, setInviting] = useState(false);
 
   useEffect(() => {
@@ -51,7 +51,7 @@ export function MemberManagement() {
       await organizationAPI.inviteUser(inviteEmail, inviteRole);
       setSuccess(`User ${inviteEmail} invited successfully!`);
       setInviteEmail('');
-      setInviteRole('member');
+      setInviteRole('viewer');
       setTimeout(() => setSuccess(''), 3000);
       fetchMembers();
     } catch (err: any) {
@@ -74,7 +74,7 @@ export function MemberManagement() {
     }
   };
 
-  const handleChangeRole = async (userId: string, newRole: 'admin' | 'member') => {
+  const handleChangeRole = async (userId: string, newRole: 'admin' | 'editor' | 'viewer') => {
     try {
       await organizationAPI.changeUserRole(userId, newRole);
       setSuccess('Role updated successfully!');
@@ -113,10 +113,11 @@ export function MemberManagement() {
               <label>Role</label>
               <select
                 value={inviteRole}
-                onChange={(e) => setInviteRole(e.target.value as 'admin' | 'member')}
+                onChange={(e) => setInviteRole(e.target.value as 'admin' | 'editor' | 'viewer')}
               >
-                <option value="member">Member</option>
-                <option value="admin">Admin</option>
+                <option value="viewer">Viewer (View only)</option>
+                <option value="editor">Editor (Upload & manage own)</option>
+                <option value="admin">Admin (Full access)</option>
               </select>
             </div>
 
@@ -142,19 +143,34 @@ export function MemberManagement() {
                   </div>
 
                   <div className="member-actions">
-                    {member.role === 'member' ? (
+                    {member.role === 'viewer' ? (
                       <button
-                        onClick={() => handleChangeRole(member.userId._id, 'admin')}
+                        onClick={() => handleChangeRole(member.userId._id, 'editor')}
                         className="btn-promote"
                       >
-                        Make Admin
+                        Make Editor
                       </button>
+                    ) : member.role === 'editor' ? (
+                      <>
+                        <button
+                          onClick={() => handleChangeRole(member.userId._id, 'admin')}
+                          className="btn-promote"
+                        >
+                          Make Admin
+                        </button>
+                        <button
+                          onClick={() => handleChangeRole(member.userId._id, 'viewer')}
+                          className="btn-demote"
+                        >
+                          Make Viewer
+                        </button>
+                      </>
                     ) : (
                       <button
-                        onClick={() => handleChangeRole(member.userId._id, 'member')}
+                        onClick={() => handleChangeRole(member.userId._id, 'editor')}
                         className="btn-demote"
                       >
-                        Make Member
+                        Make Editor
                       </button>
                     )}
                     <button
@@ -231,7 +247,12 @@ export function MemberManagement() {
           color: #c62828;
         }
 
-        .role-badge.member {
+        .role-badge.editor {
+          background: #fff3e0;
+          color: #e65100;
+        }
+
+        .role-badge.viewer {
           background: #e3f2fd;
           color: #1565c0;
         }

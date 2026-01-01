@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { videoAPI } from '../services/videoService';
-import { getAuthToken } from '../services/authService';
 import '../styles/Videos.css';
 
 interface Video {

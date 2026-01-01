@@ -30,9 +30,9 @@ const organizationSchema = new mongoose.Schema({
         ref: 'User'
       },
       role: {
-        type: String,
-        enum: ['admin', 'member'],
-        default: 'member'
+      type: String,
+      enum: ['admin', 'editor', 'viewer'],
+      default: 'viewer'
       },
       joinedAt: {
         type: Date,

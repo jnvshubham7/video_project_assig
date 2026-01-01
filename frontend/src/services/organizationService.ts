@@ -15,7 +15,7 @@ export interface OrganizationMember {
     isActive: boolean;
     createdAt: string;
   };
-  role: 'admin' | 'member';
+  role: 'admin' | 'editor' | 'viewer';
   joinedAt: string;
 }
 
@@ -76,7 +76,7 @@ export const organizationAPI = {
   },
 
   // Invite user to organization (admin only)
-  inviteUser: (email: string, role: 'admin' | 'member' = 'member') => {
+  inviteUser: (email: string, role: 'admin' | 'editor' | 'viewer' = 'viewer') => {
     return axios.post<{ message: string; member: any }>(
       `${API_BASE_URL}/org/invite`,
       { email, role },
@@ -93,7 +93,7 @@ export const organizationAPI = {
   },
 
   // Change user role (admin only)
-  changeUserRole: (userId: string, role: 'admin' | 'member') => {
+  changeUserRole: (userId: string, role: 'admin' | 'editor' | 'viewer') => {
     return axios.put<{ message: string; user: any }>(
       `${API_BASE_URL}/org/members/${userId}/role`,
       { role },

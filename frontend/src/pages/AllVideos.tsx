@@ -28,7 +28,7 @@ export function AllVideos() {
   const fetchVideos = async () => {
     try {
       setLoading(true);
-      const response = await videoAPI.getAllVideos();
+      const response = await videoAPI.getPublicVideos();
       setVideos(response.data.videos);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load videos');

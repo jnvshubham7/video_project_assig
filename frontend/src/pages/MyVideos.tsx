@@ -18,7 +18,6 @@ export function MyVideos() {
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [retryCount, setRetryCount] = useState(0);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'date' | 'views' | 'title'>('date');
@@ -34,7 +33,6 @@ export function MyVideos() {
       setError('');
       const response = await videoAPI.getUserVideos();
       setVideos(response.data.videos);
-      setRetryCount(0);
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || 'Failed to load videos';
       setError(errorMsg);
@@ -73,7 +71,7 @@ export function MyVideos() {
     }
 
     try {
-      await videoAPI.updateVideo(videoId, editFormData.title, editFormData.description);
+      await videoAPI.updateVideo(videoId, { title: editFormData.title, description: editFormData.description });
       setVideos(videos.map(v => v._id === videoId ? { ...v, ...editFormData } : v));
       setEditingId(null);
       addToast('Video updated successfully', 'success');

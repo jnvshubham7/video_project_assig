@@ -27,21 +27,21 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['admin', 'member'],
-    default: 'member'
+    enum: ['admin', 'editor', 'viewer'],
+    default: 'viewer'
   },
   permissions: {
     canUploadVideos: {
       type: Boolean,
-      default: true
+      default: false
     },
     canDeleteVideos: {
       type: Boolean,
-      default: true
+      default: false
     },
     canViewAllVideos: {
       type: Boolean,
-      default: true
+      default: false
     },
     canManageUsers: {
       type: Boolean,
