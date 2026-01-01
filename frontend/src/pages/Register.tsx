@@ -59,15 +59,8 @@ export function Register() {
       return false;
     }
 
-    if (!formData.organizationName.trim()) {
-      setError('Organization name is required');
-      return false;
-    }
-
-    if (formData.organizationName.trim().length < 2) {
-      setError('Organization name must be at least 2 characters');
-      return false;
-    }
+    // Organization name is optional; backend will create a default organization
+    // (e.g., "<username>'s Organization") when not provided.
 
     return true;
   };
@@ -113,13 +106,13 @@ export function Register() {
         {error && <div className="error-message">{error}</div>}
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label>Organization Name</label>
+            <label>Organization Name (optional)</label>
             <input
               type="text"
               name="organizationName"
               value={formData.organizationName}
               onChange={handleChange}
-              placeholder="Your organization name"
+              placeholder="Optional — leave empty for a personal workspace"
             />
           </div>
           <div className="form-group">

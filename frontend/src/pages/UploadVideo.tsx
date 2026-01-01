@@ -181,13 +181,13 @@ export function UploadVideo() {
 
       // Capture the video ID for tracking processing
       setUploadedVideoId(response.data.video._id);
+      setProcessingStatus('complete');
       
-      // Show processing status for 5 seconds before redirecting
+      // Redirect immediately to my-videos - the video will appear via socket event
+      // The processing will continue in the background
       setTimeout(() => {
-        if (processingStatus !== 'failed') {
-          navigate('/my-videos');
-        }
-      }, 5000);
+        navigate('/my-videos');
+      }, 1500); // Brief delay to show success message
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: string } } };
       const errorMessage = error.response?.data?.error || 'Upload failed. Please try again.';

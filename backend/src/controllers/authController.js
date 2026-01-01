@@ -105,18 +105,20 @@ exports.register = async (req, res) => {
 // Login
 exports.login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { identifier, password } = req.body;
 
-    // Validation
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
+    // Validation: identifier can be username or email
+    if (!identifier || !password) {
+      return res.status(400).json({ error: 'Username/email and password are required' });
     }
 
-    // Find user and include password field
-    const user = await User.findOne({ email }).select('+password').populate('organizationId');
-    
+    // Find user by email or username and include password field
+    const user = await User.findOne({ $or: [{ email: identifier }, { username: identifier }] })
+      .select('+password')
+      .populate('organizationId');
+
     if (!user) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(401).json({ error: 'Invalid username/email or password' });
     }
 
     if (!user.isActive) {

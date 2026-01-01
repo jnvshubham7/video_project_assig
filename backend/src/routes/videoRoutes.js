@@ -23,6 +23,9 @@ router.get('/user/myvideos',
   videoController.getUserVideos
 );
 
+// Public endpoint: get all public videos (no auth required)
+router.get('/public/all', videoController.getAllPublicVideos);
+
 router.get('/org/all', 
   authMiddleware, 
   tenantMiddleware, 

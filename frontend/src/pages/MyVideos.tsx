@@ -47,6 +47,19 @@ export function MyVideos() {
     fetchVideos();
     
     // Define Socket.io event handlers
+    const handleVideoUploaded = (data: any) => {
+      // Add newly uploaded video to the top of the list
+      setVideos(prevVideos => {
+        // Check if video already exists
+        const exists = prevVideos.some(v => v._id === data.video._id);
+        if (exists) return prevVideos;
+        
+        // Add new video to the beginning of the list
+        return [data.video, ...prevVideos];
+      });
+      addToast(`New video uploaded: ${data.video.title}`, 'success');
+    };
+
     const handleProcessingStart = (data: any) => {
       setVideos(videos.map(v => v._id === data.videoId ? { ...v, status: 'processing', processingProgress: 0 } : v));
     };
@@ -76,12 +89,14 @@ export function MyVideos() {
     };
 
     // Listen for real-time video status updates
+    socketService.on('video-uploaded', handleVideoUploaded);
     socketService.on('video-processing-start', handleProcessingStart);
     socketService.on('video-progress-update', handleProgressUpdate);
     socketService.on('video-processing-complete', handleProcessingComplete);
     socketService.on('video-processing-failed', handleProcessingFailed);
 
     return () => {
+      socketService.off('video-uploaded', handleVideoUploaded);
       socketService.off('video-processing-start', handleProcessingStart);
       socketService.off('video-progress-update', handleProgressUpdate);
       socketService.off('video-processing-complete', handleProcessingComplete);

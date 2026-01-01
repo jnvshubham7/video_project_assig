@@ -7,7 +7,7 @@ import '../styles/Auth.css';
 export function Login() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    email: '',
+    identifier: '',
     password: ''
   });
   const [error, setError] = useState('');
@@ -22,14 +22,23 @@ export function Login() {
   };
 
   const validateForm = (): boolean => {
-    if (!formData.email.trim()) {
-      setError('Email is required');
+    if (!formData.identifier.trim()) {
+      setError('Username or email is required');
       return false;
     }
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      setError('Please enter a valid email address');
-      return false;
+    // If user entered an email, validate its format; otherwise require a short username
+    const value = formData.identifier.trim();
+    if (value.includes('@')) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+        setError('Please enter a valid email address');
+        return false;
+      }
+    } else {
+      if (value.length < 3) {
+        setError('Username must be at least 3 characters');
+        return false;
+      }
     }
 
     if (!formData.password) {
@@ -56,7 +65,7 @@ export function Login() {
     setLoading(true);
 
     try {
-      const response = await authAPI.login(formData.email, formData.password);
+      const response = await authAPI.login(formData.identifier, formData.password);
       const { setOrganization } = await import('../services/authService');
       setAuthToken(response.data.token);
       setOrganization(response.data.organization);
@@ -85,13 +94,13 @@ export function Login() {
         {error && <div className="error-message">{error}</div>}
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label>Email Address</label>
+            <label>Username or Email</label>
             <input
-              type="email"
-              name="email"
-              value={formData.email}
+              type="text"
+              name="identifier"
+              value={formData.identifier}
               onChange={handleChange}
-              placeholder="you@example.com"
+              placeholder="Username or you@example.com"
               required
               disabled={loading}
             />

@@ -39,9 +39,9 @@ export const authAPI = {
     });
   },
 
-  login: (email: string, password: string) => {
+  login: (identifier: string, password: string) => {
     return axios.post<LoginResponse>(`${API_BASE_URL}/auth/login`, {
-      email,
+      identifier,
       password
     });
   },

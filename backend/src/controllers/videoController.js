@@ -57,6 +57,26 @@ exports.uploadVideo = async (req, res) => {
       io.to(`org-${req.organizationId}`).emit(event, data);
     } : null;
 
+    // Emit video-uploaded event immediately so clients can see the new video
+    if (io) {
+      io.to(`org-${req.organizationId}`).emit('video-uploaded', {
+        videoId: video._id,
+        video: {
+          _id: video._id,
+          title: video.title,
+          description: video.description,
+          category: video.category,
+          status: video.status,
+          processingProgress: video.processingProgress || 0,
+          filepath: video.filepath,
+          size: video.size,
+          views: video.views || 0,
+          createdAt: video.createdAt,
+          userId: video.userId
+        }
+      });
+    }
+
     // Trigger processing without waiting
     VideoProcessingService.processVideoAsync(video._id, video, ioEmitter).catch(error => {
       console.error('Background processing error:', error);
