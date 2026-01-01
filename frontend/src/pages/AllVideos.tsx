@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { videoAPI } from '../services/videoService';
 import { useOrganization } from '../context/OrganizationContext';
+import { useToast, ToastContainer } from '../components/Toast';
 import '../styles/Videos.css';
 
 interface Video {
@@ -10,20 +11,45 @@ interface Video {
   filepath: string;
   views: number;
   createdAt: string;
-  userId?: { username: string };
+  userId: { _id: string; username: string };
 }
 
 export function AllVideos() {
-  const { currentOrganization, addOrganizationChangeListener } = useOrganization();
+  const { currentOrganization, addOrganizationChangeListener, refreshOrganizations } = useOrganization();
+  const { toasts, addToast, removeToast } = useToast();
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'date' | 'views' | 'title'>('date');
   const [currentPage, setCurrentPage] = useState(1);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editFormData, setEditFormData] = useState({ title: '', description: '' });
   const videosPerPage = 12;
 
+  // Check if user can edit videos (admin or editor role)
+  const canEditVideos = currentOrganization?.role === 'admin' || currentOrganization?.role === 'editor';
+  
+  // Get current user ID from token
+  const getCurrentUserId = (): string | null => {
+    const token = localStorage.getItem('token');
+    if (!token) return null;
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+      const decoded = JSON.parse(jsonPayload);
+      return decoded.userId;
+    } catch {
+      return null;
+    }
+  };
+  
+  const currentUserId = getCurrentUserId();
+
   useEffect(() => {
+    // Ensure we have fresh organization data with current role
+    refreshOrganizations();
     fetchVideos();
     
     // Listen for organization changes and refetch videos
@@ -31,6 +57,7 @@ export function AllVideos() {
       console.log('[ALLVIDEOS] Organization changed, refetching organization videos');
       setVideos([]); // Clear current videos
       setCurrentPage(1); // Reset to first page
+      refreshOrganizations(); // Refresh to get latest role
       fetchVideos(); // Refetch for new organization
     });
 
@@ -76,6 +103,53 @@ export function AllVideos() {
     }
   };
 
+  const canEditVideo = (video: Video): boolean => {
+    if (!canEditVideos) return false;
+    // Admins can edit any video, editors can only edit their own
+    if (currentOrganization?.role === 'admin') return true;
+    return video.userId._id === currentUserId;
+  };
+
+  const handleEdit = (video: Video) => {
+    setEditingId(video._id);
+    setEditFormData({ title: video.title, description: video.description });
+  };
+
+  const handleSaveEdit = async (videoId: string) => {
+    if (!editFormData.title.trim()) {
+      addToast('Title cannot be empty', 'error');
+      return;
+    }
+
+    try {
+      await videoAPI.updateVideo(videoId, { title: editFormData.title, description: editFormData.description });
+      setVideos(videos.map(v => v._id === videoId ? { ...v, ...editFormData } : v));
+      setEditingId(null);
+      addToast('Video updated successfully', 'success');
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.error || 'Failed to update video';
+      addToast(errorMsg, 'error');
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditFormData({ title: '', description: '' });
+  };
+
+  const handleDelete = async (videoId: string, videoTitle: string) => {
+    if (window.confirm(`Delete "${videoTitle}"? This action cannot be undone.`)) {
+      try {
+        await videoAPI.deleteVideo(videoId);
+        setVideos(videos.filter(v => v._id !== videoId));
+        addToast('Video deleted successfully', 'success');
+      } catch (err: any) {
+        const errorMsg = err.response?.data?.error || 'Failed to delete video';
+        addToast(errorMsg, 'error');
+      }
+    }
+  };
+
   if (loading) {
     return <div className="loading">Loading videos...</div>;
   }
@@ -105,7 +179,12 @@ export function AllVideos() {
             }}
             className="search-input"
           />
-          <select value={sortBy} onChange={(e) => setSortBy(e.target.value as any)} className="sort-select">
+          <select 
+            value={sortBy} 
+            onChange={(e) => setSortBy(e.target.value as any)} 
+            className="sort-select"
+            title="Sort videos by date, views, or title"
+          >
             <option value="date">Sort by Date (Newest)</option>
             <option value="views">Sort by Views (Most)</option>
             <option value="title">Sort by Title (A-Z)</option>
@@ -127,21 +206,67 @@ export function AllVideos() {
           <div className="videos-grid">
             {paginatedVideos.map(video => (
               <div key={video._id} className="video-card">
-                <div className="video-thumb">
-                  <video src={video.filepath} />
-                  <div className="video-overlay">
-                    <a href={`/video/${video._id}`} className="play-btn">▶</a>
+                {editingId === video._id ? (
+                  <div className="edit-form">
+                    <h3>Edit Video</h3>
+                    <input
+                      type="text"
+                      value={editFormData.title}
+                      onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
+                      placeholder="Video title"
+                      className="edit-input"
+                    />
+                    <textarea
+                      value={editFormData.description}
+                      onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                      placeholder="Video description"
+                      className="edit-textarea"
+                      rows={3}
+                    />
+                    <div className="edit-buttons">
+                      <button onClick={() => handleSaveEdit(video._id)} className="save-btn">
+                        Save
+                      </button>
+                      <button onClick={handleCancelEdit} className="cancel-btn">
+                        Cancel
+                      </button>
+                    </div>
                   </div>
-                </div>
-                <div className="video-info">
-                  <h3>{video.title}</h3>
-                  <p className="uploader">By {video.userId?.username || 'Unknown'}</p>
-                  <p className="description">{video.description || 'No description'}</p>
-                  <div className="video-stats">
-                    <span>👁️ {video.views} views</span>
-                    <span>📅 {new Date(video.createdAt).toLocaleDateString()}</span>
-                  </div>
-                </div>
+                ) : (
+                  <>
+                    <div className="video-thumb">
+                      <video src={video.filepath} />
+                      <div className="video-overlay">
+                        <a href={`/video/${video._id}`} className="play-btn">▶</a>
+                      </div>
+                    </div>
+                    <div className="video-info">
+                      <h3>{video.title}</h3>
+                      <p className="uploader">By {video.userId?.username || 'Unknown'}</p>
+                      <p className="description">{video.description || 'No description'}</p>
+                      <div className="video-stats">
+                        <span>👁️ {video.views} views</span>
+                        <span>📅 {new Date(video.createdAt).toLocaleDateString()}</span>
+                      </div>
+                      {canEditVideo(video) && (
+                        <div className="video-actions">
+                          <button 
+                            onClick={() => handleEdit(video)}
+                            className="edit-btn"
+                          >
+                            ✏️ Edit
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(video._id, video.title)}
+                            className="delete-btn"
+                          >
+                            🗑️ Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             ))}
           </div>
@@ -169,6 +294,7 @@ export function AllVideos() {
           )}
         </>
       )}
+      <ToastContainer toasts={toasts} onClose={removeToast} />
     </div>
   );
 }

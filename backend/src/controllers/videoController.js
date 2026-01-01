@@ -155,7 +155,7 @@ exports.getUserVideos = async (req, res) => {
  * Get all organization videos with role-based filtering
  * ADMIN: can see all videos
  * EDITOR: can see all videos
- * VIEWER: can only see public videos
+ * VIEWER: can see all videos in their organization (but cannot edit/delete)
  */
 exports.getOrganizationVideos = async (req, res) => {
   try {
@@ -169,14 +169,10 @@ exports.getOrganizationVideos = async (req, res) => {
       userRole
     });
 
+    // All roles can see all organization videos
     let query = { organizationId: organizationId };
 
-    // Viewers can only see public videos
-    if (userRole === 'viewer') {
-      query.isPublic = true;
-      console.log('[VIDEO] Viewer role detected - filtering to public videos only');
-    }
-    // Editors and Admins can see all org videos
+    console.log('[VIDEO] Showing all organization videos to', userRole, 'role');
 
     // Fetch videos based on query
     const videos = await Video.find(query)

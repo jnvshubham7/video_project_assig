@@ -500,7 +500,8 @@
   min-height: 60px;
 }
 
-.edit-actions {
+.edit-actions,
+.edit-buttons {
   display: flex;
   gap: 8px;
 }

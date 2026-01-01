@@ -60,6 +60,33 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     } catch {
       setOrgs(null);
     }
+
+    // Also fetch fresh organizations from backend on mount
+    const token = localStorage.getItem('token');
+    if (token) {
+      authAPI.getMyOrganizations()
+        .then(response => {
+          const freshOrganizations = response.data.organizations;
+          if (freshOrganizations && freshOrganizations.length > 0) {
+            setOrgs(freshOrganizations);
+            setOrganizations(freshOrganizations);
+            
+            // If no current org or current org doesn't have role, find and update it
+            const currentOrgFromStorage = getOrganization();
+            if (currentOrgFromStorage) {
+              const freshCurrentOrg = freshOrganizations.find(org => org.id === currentOrgFromStorage.id);
+              if (freshCurrentOrg && freshCurrentOrg.role && freshCurrentOrg.role !== currentOrgFromStorage.role) {
+                console.log('[ORG CONTEXT] Updating current org role from backend:', freshCurrentOrg.role);
+                setCurrentOrg(freshCurrentOrg);
+                if (freshCurrentOrg.role) {
+                  setOrganization(freshCurrentOrg as Organization & { role: string });
+                }
+              }
+            }
+          }
+        })
+        .catch(err => console.error('Failed to fetch organizations on mount:', err));
+    }
   }, []);
 
   // Auto-refresh organizations every 15 seconds when user is authenticated
@@ -115,7 +142,9 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       };
       
       setCurrentOrg(updatedOrg);
-      setOrganization(updatedOrg);
+      if (updatedOrg.role) {
+        setOrganization(updatedOrg as Organization & { role: string });
+      }
       
       // Switch socket.io organization room
       if (updatedOrg.id) {

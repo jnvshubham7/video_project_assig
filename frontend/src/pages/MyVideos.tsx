@@ -36,7 +36,7 @@ interface Video {
 
 export function MyVideos() {
   const { toasts, addToast, removeToast } = useToast();
-  const { currentOrganization, addOrganizationChangeListener } = useOrganization();
+  const { currentOrganization, addOrganizationChangeListener, refreshOrganizations } = useOrganization();
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -45,13 +45,19 @@ export function MyVideos() {
   const [sortBy, setSortBy] = useState<'date' | 'views' | 'title'>('date');
   const [editFormData, setEditFormData] = useState({ title: '', description: '' });
 
+  // Check if current user can edit videos (admin or editor role)
+  const canEditVideos = currentOrganization?.role === 'admin' || currentOrganization?.role === 'editor';
+
   useEffect(() => {
+    // Ensure we have fresh organization data with current role
+    refreshOrganizations();
     fetchVideos();
     
     // Listen for organization changes and refetch videos
     const unsubscribe = addOrganizationChangeListener(() => {
       console.log('[MYVIDEOS] Organization changed, refetching videos');
       setVideos([]); // Clear current videos
+      refreshOrganizations(); // Refresh to get latest role
       fetchVideos(); // Refetch for new organization
     });
 
@@ -210,7 +216,7 @@ export function MyVideos() {
       <ToastContainer toasts={toasts} onClose={removeToast} />
       <div className="videos-header">
         <h2>My Videos</h2>
-        <a href="/upload" className="upload-btn">+ Upload New Video</a>
+        {canEditVideos && <a href="/upload" className="upload-btn">+ Upload New Video</a>}
       </div>
 
       {error && (
@@ -336,22 +342,24 @@ export function MyVideos() {
                       <span>👁️ {video.views} views</span>
                       <span>📅 {new Date(video.createdAt).toLocaleDateString()}</span>
                     </div>
-                    <div className="video-actions">
-                      <button 
-                        className="edit-btn"
-                        onClick={() => handleEdit(video)}
-                        title="Edit video"
-                      >
-                        ✏️ Edit
-                      </button>
-                      <button 
-                        className="delete-btn"
-                        onClick={() => handleDelete(video._id, video.title)}
-                        title="Delete video"
-                      >
-                        🗑️ Delete
-                      </button>
-                    </div>
+                    {canEditVideos && (
+                      <div className="video-actions">
+                        <button 
+                          className="edit-btn"
+                          onClick={() => handleEdit(video)}
+                          title="Edit video"
+                        >
+                          ✏️ Edit
+                        </button>
+                        <button 
+                          className="delete-btn"
+                          onClick={() => handleDelete(video._id, video.title)}
+                          title="Delete video"
+                        >
+                          🗑️ Delete
+                        </button>
+                      </div>
+                    )}
                   </>
                 )}
               </div>

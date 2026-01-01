@@ -125,12 +125,7 @@ export function OrganizationSettings() {
           >
             Manage Members
           </button>
-          <button
-            onClick={() => navigate('/organization/stats')}
-            className="nav-btn"
-          >
-            View Statistics
-          </button>
+        
         </div>
       </div>
     </div>

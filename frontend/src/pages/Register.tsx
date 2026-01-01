@@ -87,8 +87,14 @@ export function Register() {
       // Import and use auth service functions
       const { setAuthToken, setOrganization, setOrganizations } = await import('../services/authService');
       setAuthToken(response.data.token);
-      setOrganization(response.data.organization);
-      setOrganizations([response.data.organization]);
+      
+      // Ensure organization has a role (defaults to 'admin' for newly created org)
+      const orgWithRole = {
+        ...response.data.organization,
+        role: response.data.organization.role || 'admin'
+      };
+      setOrganization(orgWithRole);
+      setOrganizations([orgWithRole]);
       localStorage.setItem('user', JSON.stringify(response.data.user));
       setTimeout(() => {
         navigate('/login');
