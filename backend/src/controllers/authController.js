@@ -1,8 +1,9 @@
 const User = require('../models/User');
 const Organization = require('../models/Organization');
+const OrganizationMember = require('../models/OrganizationMember');
 const jwt = require('jsonwebtoken');
 
-// Register with organization creation
+// Register - user is global identity
 exports.register = async (req, res) => {
   try {
     const { username, email, password, confirmPassword, organizationName } = req.body;
@@ -20,69 +21,76 @@ exports.register = async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
-    // Check if email exists in any organization (emails must be unique globally)
+    // Check if email already exists globally
     const existingEmail = await User.findOne({ email });
     if (existingEmail) {
       return res.status(400).json({ error: 'Email already exists' });
     }
 
-    // Create or get organization
-    let organization;
-    if (organizationName) {
-      // Check if organization already exists
-      const existingOrg = await Organization.findOne({ 
-        name: organizationName 
-      });
-      
-      if (existingOrg) {
-        return res.status(400).json({ error: 'Organization already exists' });
-      }
-
-      // Create new organization
-      organization = new Organization({
-        name: organizationName,
-        slug: organizationName.toLowerCase().replace(/\s+/g, '-'),
-        adminId: null // Will be set after user creation
-      });
-    } else {
-      // Create default organization for user
-      organization = new Organization({
-        name: `${username}'s Organization`,
-        slug: `${username}-org-${Date.now()}`,
-        adminId: null
-      });
+    // Check if username already exists globally
+    const existingUsername = await User.findOne({ username });
+    if (existingUsername) {
+      return res.status(400).json({ error: 'Username already exists' });
     }
 
-    // Placeholder for user ID (will be updated after user creation)
-    const tempUserId = new User({}).constructor.prototype.constructor._id;
-
-    // Create new user
+    // Step 1: Create global user identity
     const user = new User({
       username,
       email,
       password,
-      organizationId: organization._id,
-      role: 'admin',
-      permissions: {
-        canUploadVideos: true,
-        canDeleteVideos: true,
-        canViewAllVideos: true,
-        canManageUsers: true,
-        canManageOrganization: true
-      }
+      isActive: true
     });
 
     await user.save();
-    organization.adminId = user._id;
-    organization.members.push({
+
+    // Step 2: Create organization (or join existing one)
+    let organization;
+    let isNewOrg = false;
+
+    if (organizationName) {
+      const existingOrg = await Organization.findOne({ 
+        slug: organizationName.toLowerCase().replace(/\s+/g, '-') 
+      });
+      
+      if (existingOrg) {
+        organization = existingOrg;
+      } else {
+        isNewOrg = true;
+        organization = new Organization({
+          name: organizationName,
+          slug: organizationName.toLowerCase().replace(/\s+/g, '-').substring(0, 50),
+          description: ''
+        });
+        await organization.save();
+      }
+    } else {
+      // Create default personal organization
+      isNewOrg = true;
+      const personalOrgName = `${username}'s Organization`;
+      organization = new Organization({
+        name: personalOrgName,
+        slug: `${username}-${Date.now()}`.toLowerCase(),
+        description: 'Personal organization'
+      });
+      await organization.save();
+    }
+
+    // Step 3: Create membership record - new users are always ADMIN of their org
+    const membership = new OrganizationMember({
       userId: user._id,
+      organizationId: organization._id,
       role: 'admin'
     });
-    await organization.save();
 
-    // Generate JWT token
+    await membership.save();
+
+    // Generate JWT token with selected organization
     const token = jwt.sign(
-      { userId: user._id, email: user.email, organizationId: organization._id },
+      { 
+        userId: user._id, 
+        email: user.email, 
+        organizationId: organization._id 
+      },
       process.env.JWT_SECRET || 'secret',
       { expiresIn: '7d' }
     );
@@ -95,27 +103,28 @@ exports.register = async (req, res) => {
         id: organization._id,
         name: organization.name,
         slug: organization.slug
-      }
+      },
+      isNewOrganization: isNewOrg
     });
   } catch (error) {
+    console.error('Register error:', error);
     res.status(500).json({ error: error.message });
   }
 };
 
-// Login
+// Login - returns all organizations user belongs to
 exports.login = async (req, res) => {
   try {
     const { identifier, password } = req.body;
 
-    // Validation: identifier can be username or email
     if (!identifier || !password) {
       return res.status(400).json({ error: 'Username/email and password are required' });
     }
 
-    // Find user by email or username and include password field
-    const user = await User.findOne({ $or: [{ email: identifier }, { username: identifier }] })
-      .select('+password')
-      .populate('organizationId');
+    // Find user by email or username (global search)
+    const user = await User.findOne({ 
+      $or: [{ email: identifier }, { username: identifier }] 
+    }).select('+password');
 
     if (!user) {
       return res.status(401).json({ error: 'Invalid username/email or password' });
@@ -131,9 +140,25 @@ exports.login = async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    // Generate JWT token
+    // Get all organizations this user belongs to
+    const memberships = await OrganizationMember.find({ userId: user._id })
+      .populate('organizationId');
+
+    if (memberships.length === 0) {
+      return res.status(403).json({ error: 'User is not part of any organization' });
+    }
+
+    // Default to first organization
+    const defaultOrg = memberships[0].organizationId;
+    const defaultRole = memberships[0].role;
+
+    // Generate JWT token with default organization
     const token = jwt.sign(
-      { userId: user._id, email: user.email, organizationId: user.organizationId._id },
+      { 
+        userId: user._id, 
+        email: user.email, 
+        organizationId: defaultOrg._id 
+      },
       process.env.JWT_SECRET || 'secret',
       { expiresIn: '7d' }
     );
@@ -142,36 +167,107 @@ exports.login = async (req, res) => {
       message: 'Login successful',
       token,
       user: user.toJSON(),
-      organization: {
-        id: user.organizationId._id,
-        name: user.organizationId.name,
-        slug: user.organizationId.slug
-      }
+      currentOrganization: {
+        id: defaultOrg._id,
+        name: defaultOrg.name,
+        slug: defaultOrg.slug,
+        role: defaultRole
+      },
+      organizations: memberships.map(m => ({
+        id: m.organizationId._id,
+        name: m.organizationId.name,
+        slug: m.organizationId.slug,
+        role: m.role
+      }))
     });
   } catch (error) {
+    console.error('Login error:', error);
     res.status(500).json({ error: error.message });
   }
 };
 
-// Get current user
+// Switch organization for current user
+exports.switchOrganization = async (req, res) => {
+  try {
+    const { organizationId } = req.body;
+    const userId = req.userId;
+
+    if (!organizationId) {
+      return res.status(400).json({ error: 'Organization ID is required' });
+    }
+
+    // Verify user belongs to this organization
+    const membership = await OrganizationMember.findOne({
+      userId: userId,
+      organizationId: organizationId
+    }).populate('organizationId');
+
+    if (!membership) {
+      return res.status(403).json({ error: 'User does not belong to this organization' });
+    }
+
+    const organization = membership.organizationId;
+
+    // Generate new token with selected organization
+    const token = jwt.sign(
+      { 
+        userId: userId, 
+        email: req.userEmail, 
+        organizationId: organization._id 
+      },
+      process.env.JWT_SECRET || 'secret',
+      { expiresIn: '7d' }
+    );
+
+    res.json({
+      message: 'Organization switched successfully',
+      token,
+      organization: {
+        id: organization._id,
+        name: organization.name,
+        slug: organization.slug,
+        role: membership.role
+      }
+    });
+  } catch (error) {
+    console.error('Switch organization error:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Get current user with all organizations
 exports.getCurrentUser = async (req, res) => {
   try {
-    const user = await User.findById(req.userId).populate('organizationId');
+    const user = await User.findById(req.userId);
     
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    // Get all organizations and memberships
+    const memberships = await OrganizationMember.find({ userId: req.userId })
+      .populate('organizationId');
+
+    // Get current organization
+    const currentOrg = await Organization.findById(req.organizationId);
+
     res.json({
       user: user.toJSON(),
-      organization: {
-        id: user.organizationId._id,
-        name: user.organizationId.name,
-        slug: user.organizationId.slug
-      }
+      currentOrganization: currentOrg ? {
+        id: currentOrg._id,
+        name: currentOrg.name,
+        slug: currentOrg.slug
+      } : null,
+      organizations: memberships.map(m => ({
+        id: m.organizationId._id,
+        name: m.organizationId.name,
+        slug: m.organizationId.slug,
+        role: m.role
+      }))
     });
   } catch (error) {
+    console.error('Get current user error:', error);
     res.status(500).json({ error: error.message });
   }
 };
-
+  

@@ -66,14 +66,16 @@ export function Login() {
 
     try {
       const response = await authAPI.login(formData.identifier, formData.password);
-      const { setOrganization } = await import('../services/authService');
+      const { setOrganization, setOrganizations } = await import('../services/authService');
+      
       setAuthToken(response.data.token);
-      setOrganization(response.data.organization);
+      setOrganization(response.data.currentOrganization);
+      setOrganizations(response.data.organizations);
       localStorage.setItem('user', JSON.stringify(response.data.user));
       
       // Initialize Socket.io connection for real-time updates
       try {
-        socketService.connect(response.data.organization.id);
+        socketService.connect(response.data.currentOrganization.id);
       } catch (socketError) {
         console.error('Failed to initialize socket connection:', socketError);
       }

@@ -1,14 +1,16 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { clearAuthToken, getAuthToken, getOrganization } from '../services/authService';
+import { clearAuthToken, getAuthToken, getOrganization, getOrganizations } from '../services/authService';
 import { useState, useEffect } from 'react';
+import { useOrganization } from '../context/OrganizationContext';
 import './Header.css';
 
 export function Header() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { currentOrganization, organizations, switchOrganization } = useOrganization();
   const [authenticated, setAuthenticated] = useState(() => !!getAuthToken());
   const [user, setUser] = useState<any>(null);
-  const [organization, setOrganizationState] = useState<any>(null);
+  const [showOrgDropdown, setShowOrgDropdown] = useState(false);
 
   useEffect(() => {
     const token = getAuthToken();
@@ -23,11 +25,19 @@ export function Header() {
         setUser(null);
       }
     }
-    
-    // Get organization from storage
-    const org = getOrganization();
-    setOrganizationState(org);
   }, [location]);
+
+  // Listen to organization changes
+  useEffect(() => {
+    const handleOrgChange = () => {
+      // Refresh component state
+      const org = getOrganization();
+      window.location.reload(); // Full reload to refresh all data
+    };
+
+    window.addEventListener('organizationChanged', handleOrgChange);
+    return () => window.removeEventListener('organizationChanged', handleOrgChange);
+  }, []);
 
   // Listen to storage changes for real-time updates
   useEffect(() => {
@@ -50,15 +60,23 @@ export function Header() {
 
   const handleLogout = () => {
     clearAuthToken();
-    localStorage.removeItem('user');
     setAuthenticated(false);
     setUser(null);
-    setOrganizationState(null);
     navigate('/login');
   };
 
   const handleLogoClick = () => {
     navigate('/');
+  };
+
+  const handleOrgSwitch = async (orgId: string) => {
+    try {
+      await switchOrganization(orgId);
+      setShowOrgDropdown(false);
+      window.location.reload(); // Reload to refresh organization-specific data
+    } catch (error) {
+      console.error('Failed to switch organization:', error);
+    }
   };
 
   return (
@@ -78,7 +96,31 @@ export function Header() {
               <a href="/organization" className="nav-item">Organization</a>
               <div className="user-org-info">
                 <span className="user-info">👤 {user?.username || 'User'}</span>
-                {organization && <span className="org-info">🏢 {organization.name}</span>}
+                {currentOrganization && (
+                  <div className="org-dropdown-container">
+                    <button 
+                      className="org-info"
+                      onClick={() => setShowOrgDropdown(!showOrgDropdown)}
+                    >
+                      🏢 {currentOrganization.name} ({currentOrganization.role})
+                      <span className="dropdown-arrow">▼</span>
+                    </button>
+                    {showOrgDropdown && organizations.length > 1 && (
+                      <div className="org-dropdown">
+                        {organizations.map(org => (
+                          <button
+                            key={org.id}
+                            className={`org-option ${org.id === currentOrganization.id ? 'active' : ''}`}
+                            onClick={() => handleOrgSwitch(org.id)}
+                          >
+                            <span>{org.name}</span>
+                            <span className="org-role">({org.role})</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               <button onClick={handleLogout} className="logout-btn">
                 Logout

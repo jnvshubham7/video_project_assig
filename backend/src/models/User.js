@@ -6,12 +6,14 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Username is required'],
     trim: true,
-    minlength: 3
+    minlength: 3,
+    unique: true
   },
   email: {
     type: String,
     required: [true, 'Email is required'],
     lowercase: true,
+    unique: true,
     match: [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/, 'Please provide a valid email']
   },
   password: {
@@ -19,38 +21,6 @@ const userSchema = new mongoose.Schema({
     required: [true, 'Password is required'],
     minlength: 6,
     select: false
-  },
-  organizationId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Organization',
-    required: true
-  },
-  role: {
-    type: String,
-    enum: ['admin', 'editor', 'viewer'],
-    default: 'viewer'
-  },
-  permissions: {
-    canUploadVideos: {
-      type: Boolean,
-      default: false
-    },
-    canDeleteVideos: {
-      type: Boolean,
-      default: false
-    },
-    canViewAllVideos: {
-      type: Boolean,
-      default: false
-    },
-    canManageUsers: {
-      type: Boolean,
-      default: false
-    },
-    canManageOrganization: {
-      type: Boolean,
-      default: false
-    }
   },
   isActive: {
     type: Boolean,
@@ -62,11 +32,9 @@ const userSchema = new mongoose.Schema({
   }
 });
 
-// Create compound unique index for username within organization
-userSchema.index({ username: 1, organizationId: 1 }, { unique: true });
-
-// Email must be globally unique (single user per email across all organizations)
+// Global unique indexes - users are identity across all organizations
 userSchema.index({ email: 1 }, { unique: true });
+userSchema.index({ username: 1 }, { unique: true });
 
 // Hash password before saving
 userSchema.pre('save', async function(next) {

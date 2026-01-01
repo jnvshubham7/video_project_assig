@@ -1,87 +1,82 @@
 const express = require('express');
 const videoController = require('../controllers/videoController');
 const authMiddleware = require('../middleware/authMiddleware');
-const { tenantMiddleware, checkPermission, organizationAccess } = require('../middleware/tenantMiddleware');
+const { rbacMiddleware, organizationMiddleware } = require('../middleware/rbacMiddleware');
 const upload = require('../config/multerConfig');
 
 const router = express.Router();
 
-// Protected routes (require authentication and tenant validation)
+/**
+ * All routes require:
+ * 1. Authentication (authMiddleware)
+ * 2. Organization membership check (organizationMiddleware or rbacMiddleware)
+ * 3. Role-based permissions (rbacMiddleware with required role)
+ */
+
+// Upload video - requires EDITOR or ADMIN role
 router.post('/upload', 
   authMiddleware, 
-  tenantMiddleware, 
-  organizationAccess,
-  checkPermission('canUploadVideos'),
+  rbacMiddleware('editor'),
   upload.single('video'), 
   videoController.uploadVideo
 );
 
+// Get user's videos
 router.get('/user/myvideos', 
   authMiddleware, 
-  tenantMiddleware, 
-  organizationAccess,
+  organizationMiddleware,
   videoController.getUserVideos
 );
 
 // Public endpoint: get all public videos (no auth required)
 router.get('/public/all', videoController.getAllPublicVideos);
 
+// Get all organization videos (respects role-based filtering)
 router.get('/org/all', 
   authMiddleware, 
-  tenantMiddleware, 
-  organizationAccess,
+  organizationMiddleware,
   videoController.getOrganizationVideos
 );
 
+// Update video - requires ownership or ADMIN role
 router.put('/:id', 
   authMiddleware, 
-  tenantMiddleware, 
-  organizationAccess,
+  organizationMiddleware,
   videoController.updateVideo
 );
 
+// Delete video - requires ownership or ADMIN role
 router.delete('/:id', 
   authMiddleware, 
-  tenantMiddleware, 
-  organizationAccess,
-  checkPermission('canDeleteVideos'),
+  organizationMiddleware,
   videoController.deleteVideo
 );
 
-router.post('/:id/share',
-  authMiddleware,
-  tenantMiddleware,
-  organizationAccess,
-  videoController.shareVideo
-);
-
-// Filtering and statistics routes
+// Advanced filtering - respects role-based filtering
 router.get('/filter/advanced',
   authMiddleware,
-  tenantMiddleware,
-  organizationAccess,
+  organizationMiddleware,
   videoController.getFilteredVideos
 );
 
+// Get statistics - organization members only
 router.get('/stats/overview',
   authMiddleware,
-  tenantMiddleware,
-  organizationAccess,
+  organizationMiddleware,
   videoController.getVideoStatistics
 );
 
+// Get processing status
 router.get('/:id/processing-status',
   authMiddleware,
-  tenantMiddleware,
-  organizationAccess,
+  organizationMiddleware,
   videoController.getProcessingStatus
 );
 
-// Get video by ID (organization members only)
+// Get video by ID - organization members only
 router.get('/:id',
   authMiddleware,
-  tenantMiddleware,
-  organizationAccess,
+  organizationMiddleware,
   videoController.getVideoById
 );
 

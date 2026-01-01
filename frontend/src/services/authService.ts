@@ -2,30 +2,44 @@ import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
+// Organization interface
 export interface Organization {
   id: string;
   name: string;
   slug: string;
+  role?: 'admin' | 'editor' | 'viewer';
 }
 
+// User is now global (no organizationId)
 export interface User {
   _id: string;
   username: string;
   email: string;
-  role: 'admin' | 'editor' | 'viewer';
-  organizationId: string;
+  isActive: boolean;
+  createdAt: string;
 }
 
+// New response format
 export interface LoginResponse {
+  message: string;
   token: string;
   user: User;
-  organization: Organization;
+  currentOrganization: Organization & { role: 'admin' | 'editor' | 'viewer' };
+  organizations: (Organization & { role: 'admin' | 'editor' | 'viewer' })[];
 }
 
 export interface RegisterResponse {
+  message: string;
   token: string;
   user: User;
   organization: Organization;
+  isNewOrganization: boolean;
+}
+
+export interface CurrentUserResponse {
+  user: User;
+  currentOrganization: Organization | null;
+  organizations: (Organization & { role: 'admin' | 'editor' | 'viewer' })[];
 }
 
 export const authAPI = {
@@ -47,7 +61,15 @@ export const authAPI = {
   },
 
   getCurrentUser: () => {
-    return axios.get<{ user: User; organization: Organization }>(`${API_BASE_URL}/auth/me`, {
+    return axios.get<CurrentUserResponse>(`${API_BASE_URL}/auth/me`, {
+      headers: { 'Authorization': `Bearer ${getAuthToken()}` }
+    });
+  },
+
+  switchOrganization: (organizationId: string) => {
+    return axios.post<{ message: string; token: string; organization: Organization & { role: 'admin' | 'editor' | 'viewer' } }>(`${API_BASE_URL}/auth/switch-organization`, {
+      organizationId
+    }, {
       headers: { 'Authorization': `Bearer ${getAuthToken()}` }
     });
   }
@@ -63,13 +85,32 @@ export const setAuthToken = (token: string) => {
   }
 };
 
-export const setOrganization = (organization: Organization) => {
-  localStorage.setItem('organization', JSON.stringify(organization));
+export const setOrganization = (organization: Organization & { role: string }) => {
+  localStorage.setItem('currentOrganization', JSON.stringify(organization));
 };
 
-export const getOrganization = (): Organization | null => {
-  const org = localStorage.getItem('organization');
-  return org ? JSON.parse(org) : null;
+export const getOrganization = (): (Organization & { role: string }) | null => {
+  const org = localStorage.getItem('currentOrganization');
+  if (!org) return null;
+  try {
+    return JSON.parse(org);
+  } catch (e) {
+    return null;
+  }
+};
+
+export const setOrganizations = (organizations: (Organization & { role: string })[]) => {
+  localStorage.setItem('organizations', JSON.stringify(organizations));
+};
+
+export const getOrganizations = (): (Organization & { role: string })[] => {
+  const orgs = localStorage.getItem('organizations');
+  if (!orgs) return [];
+  try {
+    return JSON.parse(orgs);
+  } catch (e) {
+    return [];
+  }
 };
 
 export const getAuthToken = () => {
@@ -78,7 +119,9 @@ export const getAuthToken = () => {
 
 export const clearAuthToken = () => {
   localStorage.removeItem('token');
-  localStorage.removeItem('organization');
+  localStorage.removeItem('currentOrganization');
+  localStorage.removeItem('organizations');
+  localStorage.removeItem('user');
   delete axios.defaults.headers.common['Authorization'];
 };
 

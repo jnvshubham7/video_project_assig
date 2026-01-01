@@ -1,5 +1,6 @@
 const Video = require('../models/Video');
-const User = require('../models/User');
+const Organization = require('../models/Organization');
+const OrganizationMember = require('../models/OrganizationMember');
 const mongoose = require('mongoose');
 const cloudinary = require('cloudinary').v2;
 const VideoProcessingService = require('../services/videoProcessingService');
@@ -11,7 +12,10 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Upload video with organization isolation
+/**
+ * Upload video with organization isolation
+ * Only ADMIN and EDITOR roles can upload
+ */
 exports.uploadVideo = async (req, res) => {
   try {
     const { title, description, category, isPublic } = req.body;
@@ -24,9 +28,11 @@ exports.uploadVideo = async (req, res) => {
       return res.status(400).json({ error: 'No video file provided' });
     }
 
-    // Check user permissions
-    if (!req.userPermissions.canUploadVideos) {
-      return res.status(403).json({ error: 'You do not have permission to upload videos' });
+    // Check role-based permission: only admin and editor can upload
+    if (req.userRole !== 'admin' && req.userRole !== 'editor') {
+      return res.status(403).json({ 
+        error: 'You do not have permission to upload videos. Required role: editor or admin' 
+      });
     }
 
     // Cloudinary file info from multer storage
@@ -97,11 +103,14 @@ exports.uploadVideo = async (req, res) => {
       }
     });
   } catch (error) {
+    console.error('Upload error:', error);
     res.status(500).json({ error: error.message });
   }
 };
 
-// Get user's videos within organization
+/**
+ * Get user's videos within organization
+ */
 exports.getUserVideos = async (req, res) => {
   try {
     // Fetch only videos belonging to user's organization
@@ -118,25 +127,21 @@ exports.getUserVideos = async (req, res) => {
   }
 };
 
-// Get all organization videos with role-based filtering
+/**
+ * Get all organization videos with role-based filtering
+ * ADMIN: can see all videos
+ * EDITOR: can see all videos
+ * VIEWER: can only see public videos
+ */
 exports.getOrganizationVideos = async (req, res) => {
   try {
     let query = { organizationId: req.organizationId };
 
-    // Viewers can only see public videos or videos shared with them
+    // Viewers can only see public videos
     if (req.userRole === 'viewer') {
-      query = {
-        $or: [
-          { organizationId: req.organizationId, isPublic: true },
-          { organizationId: req.organizationId, allowedUsers: req.userId }
-        ]
-      };
+      query.isPublic = true;
     }
-    // Editors can see all org videos
-    else if (req.userRole === 'editor') {
-      query = { organizationId: req.organizationId };
-    }
-    // Admins can see all org videos
+    // Editors and Admins can see all org videos
 
     // Fetch videos based on query
     const videos = await Video.find(query)
@@ -152,7 +157,9 @@ exports.getOrganizationVideos = async (req, res) => {
   }
 };
 
-// Get all public videos (for external access)
+/**
+ * Get all public videos (for external access)
+ */
 exports.getAllPublicVideos = async (req, res) => {
   try {
     // Only fetch public videos
@@ -169,8 +176,12 @@ exports.getAllPublicVideos = async (req, res) => {
   }
 };
 
-// Get video by ID with proper access control
-// Requires authentication - user must be in same organization
+/**
+ * Get video by ID with proper access control
+ * User must be in same organization
+ * VIEWER can only access public videos
+ * EDITOR and ADMIN can access all videos in their org
+ */
 exports.getVideoById = async (req, res) => {
   try {
     const video = await Video.findById(req.params.id)
@@ -188,12 +199,9 @@ exports.getVideoById = async (req, res) => {
 
     // Role-based access check
     const isOwner = video.userId._id.toString() === req.userId;
-    const isAdmin = req.userRole === 'admin';
-    const isEditor = req.userRole === 'editor';
-    const isViewer = req.userRole === 'viewer';
 
-    // Viewers can only see public videos or videos explicitly shared with them
-    if (isViewer && !video.isPublic && !video.allowedUsers.includes(req.userId)) {
+    // Viewers can only see public videos
+    if (req.userRole === 'viewer' && !video.isPublic) {
       return res.status(403).json({ error: 'Access denied to this video' });
     }
 
@@ -209,7 +217,12 @@ exports.getVideoById = async (req, res) => {
   }
 };
 
-// Delete video with ownership check
+/**
+ * Delete video
+ * ADMIN: can delete any video in org
+ * EDITOR: can delete only their own videos
+ * VIEWER: cannot delete
+ */
 exports.deleteVideo = async (req, res) => {
   try {
     const video = await Video.findById(req.params.id);
@@ -218,17 +231,26 @@ exports.deleteVideo = async (req, res) => {
       return res.status(404).json({ error: 'Video not found' });
     }
 
-    // Verify ownership and organization membership
-    if (video.userId.toString() !== req.userId) {
-      // Check if admin of the organization
-      if (!(req.userRole === 'admin' && video.organizationId.toString() === req.organizationId.toString())) {
-        return res.status(403).json({ error: 'Not authorized to delete this video' });
-      }
+    // Verify video belongs to user's organization
+    if (video.organizationId.toString() !== req.organizationId.toString()) {
+      return res.status(403).json({ error: 'Access denied' });
     }
 
-    // Check permissions
-    if (!req.userPermissions.canDeleteVideos) {
-      return res.status(403).json({ error: 'You do not have permission to delete videos' });
+    // Check delete permission based on role
+    const isOwner = video.userId.toString() === req.userId;
+    const isAdmin = req.userRole === 'admin';
+
+    if (!isAdmin && !isOwner) {
+      return res.status(403).json({ 
+        error: 'You do not have permission to delete this video' 
+      });
+    }
+
+    // Viewers cannot delete
+    if (req.userRole === 'viewer') {
+      return res.status(403).json({ 
+        error: 'Viewers do not have permission to delete videos' 
+      });
     }
 
     // Delete from Cloudinary if public ID exists
@@ -250,7 +272,12 @@ exports.deleteVideo = async (req, res) => {
   }
 };
 
-// Update video with ownership check
+/**
+ * Update video
+ * ADMIN: can update any video in org
+ * EDITOR: can update only their own videos
+ * VIEWER: cannot update
+ */
 exports.updateVideo = async (req, res) => {
   try {
     const { title, description, isPublic } = req.body;
@@ -260,12 +287,26 @@ exports.updateVideo = async (req, res) => {
       return res.status(404).json({ error: 'Video not found' });
     }
 
-    // Verify ownership and organization membership
-    if (video.userId.toString() !== req.userId) {
-      // Check if admin of the organization
-      if (!(req.userRole === 'admin' && video.organizationId.toString() === req.organizationId.toString())) {
-        return res.status(403).json({ error: 'Not authorized to update this video' });
-      }
+    // Verify video belongs to user's organization
+    if (video.organizationId.toString() !== req.organizationId.toString()) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Check update permission based on role
+    const isOwner = video.userId.toString() === req.userId;
+    const isAdmin = req.userRole === 'admin';
+
+    if (!isAdmin && !isOwner) {
+      return res.status(403).json({ 
+        error: 'You do not have permission to update this video' 
+      });
+    }
+
+    // Viewers cannot update
+    if (req.userRole === 'viewer') {
+      return res.status(403).json({ 
+        error: 'Viewers do not have permission to update videos' 
+      });
     }
 
     if (title) video.title = title;
@@ -278,51 +319,6 @@ exports.updateVideo = async (req, res) => {
 
     res.json({
       message: 'Video updated successfully',
-      video
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Share video with specific users
-exports.shareVideo = async (req, res) => {
-  try {
-    const { userIds } = req.body;
-
-    if (!Array.isArray(userIds) || userIds.length === 0) {
-      return res.status(400).json({ error: 'User IDs array is required' });
-    }
-
-    const video = await Video.findById(req.params.id);
-
-    if (!video) {
-      return res.status(404).json({ error: 'Video not found' });
-    }
-
-    // Verify ownership or admin role
-    if (video.userId.toString() !== req.userId) {
-      if (!(req.userRole === 'admin' && video.organizationId.toString() === req.organizationId.toString())) {
-        return res.status(403).json({ error: 'Not authorized to share this video' });
-      }
-    }
-
-    // Verify all users are in the same organization
-    const users = await User.find({ 
-      _id: { $in: userIds },
-      organizationId: req.organizationId
-    });
-
-    if (users.length !== userIds.length) {
-      return res.status(400).json({ error: 'One or more users not found in your organization' });
-    }
-
-    // Add users to allowedUsers
-    video.allowedUsers = [...new Set([...video.allowedUsers, ...userIds])];
-    await video.save();
-
-    res.json({
-      message: 'Video shared successfully',
       video
     });
   } catch (error) {
@@ -343,8 +339,7 @@ exports.getProcessingStatus = async (req, res) => {
 };
 
 /**
- * Advanced filtering for videos
- * Supports filters: status, sensitivity, dateRange, minSize, maxSize, category
+ * Advanced filtering for videos with role-based access
  */
 exports.getFilteredVideos = async (req, res) => {
   try {
@@ -404,10 +399,8 @@ exports.getFilteredVideos = async (req, res) => {
     
     // Role-based filtering
     if (req.userRole === 'viewer') {
-      query.$or = [
-        { organizationId: req.organizationId, isPublic: true, ...commonFilters },
-        { organizationId: req.organizationId, allowedUsers: req.userId, ...commonFilters }
-      ];
+      // Viewers only see public videos
+      query = { organizationId: req.organizationId, isPublic: true, ...commonFilters };
     } else {
       // Editors and Admins see all org videos
       query = { organizationId: req.organizationId, ...commonFilters };
@@ -515,4 +508,3 @@ exports.getVideoStatistics = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
-

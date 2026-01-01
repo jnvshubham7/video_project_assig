@@ -117,12 +117,80 @@
   background: rgba(255, 255, 255, 0.15);
   border-radius: 5px;
   white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.org-info:hover {
+  background: rgba(255, 255, 255, 0.25);
 }
 
 .user-org-info {
   display: flex;
   gap: 8px;
   align-items: center;
+}
+
+.org-dropdown-container {
+  position: relative;
+}
+
+.dropdown-arrow {
+  font-size: 9px;
+  margin-left: 4px;
+  transition: transform 0.2s;
+}
+
+.org-dropdown-container .org-info.active .dropdown-arrow {
+  transform: rotate(180deg);
+}
+
+.org-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 5px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  min-width: 200px;
+  z-index: 1000;
+  margin-top: 4px;
+}
+
+.org-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  background: white;
+  color: #333;
+  cursor: pointer;
+  text-align: left;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.org-option:hover {
+  background: #f5f5f5;
+}
+
+.org-option.active {
+  background: #e8f5e9;
+  font-weight: 600;
+  color: #2e7d32;
+}
+
+.org-role {
+  font-size: 10px;
+  color: #999;
+  margin-left: 8px;
+}
+
+.org-option.active .org-role {
+  color: #2e7d32;
 }
 }
 

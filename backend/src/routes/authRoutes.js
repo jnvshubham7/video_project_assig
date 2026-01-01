@@ -4,9 +4,13 @@ const authMiddleware = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
+// Public endpoints
 router.post('/register', authController.register);
 router.post('/login', authController.login);
+
+// Protected endpoints
 router.get('/me', authMiddleware, authController.getCurrentUser);
+router.post('/switch-organization', authMiddleware, authController.switchOrganization);
 
 module.exports = router;
 

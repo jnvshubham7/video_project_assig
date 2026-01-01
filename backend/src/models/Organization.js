@@ -18,28 +18,6 @@ const organizationSchema = new mongoose.Schema({
     trim: true,
     maxlength: 500
   },
-  adminId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  members: [
-    {
-      userId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User'
-      },
-      role: {
-      type: String,
-      enum: ['admin', 'editor', 'viewer'],
-      default: 'viewer'
-      },
-      joinedAt: {
-        type: Date,
-        default: Date.now
-      }
-    }
-  ],
   settings: {
     maxVideoSize: {
       type: Number,

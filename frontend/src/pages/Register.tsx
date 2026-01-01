@@ -85,9 +85,10 @@ export function Register() {
       );
       
       // Import and use auth service functions
-      const { setAuthToken, setOrganization } = await import('../services/authService');
+      const { setAuthToken, setOrganization, setOrganizations } = await import('../services/authService');
       setAuthToken(response.data.token);
       setOrganization(response.data.organization);
+      setOrganizations([response.data.organization]);
       localStorage.setItem('user', JSON.stringify(response.data.user));
       setTimeout(() => {
         navigate('/login');
