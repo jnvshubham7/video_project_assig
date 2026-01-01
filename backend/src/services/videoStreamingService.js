@@ -51,6 +51,8 @@ class VideoStreamingService {
 
     if (isNaN(end)) {
       // Open range: "bytes=1024-" (from 1024 to end)
+      // If start is beyond file size, treat unsatisfiable
+      if (start >= fileSize) return null;
       return {
         start: start,
         end: fileSize - 1
@@ -58,9 +60,12 @@ class VideoStreamingService {
     }
 
     // Closed range: "bytes=0-1023"
+    const computedEnd = Math.min(end, fileSize - 1);
+    // Unsatisfiable if start is beyond file size or start > end
+    if (start >= fileSize || start > computedEnd) return null;
     return {
       start: start,
-      end: Math.min(end, fileSize - 1)
+      end: computedEnd
     };
   }
 
