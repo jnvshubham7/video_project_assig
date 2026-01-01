@@ -322,6 +322,48 @@ exports.getCurrentOrganization = async (req, res) => {
 };
 
 /**
+ * Update current organization (admin only)
+ */
+exports.updateCurrentOrganization = async (req, res) => {
+  try {
+    const organizationId = req.organizationId;
+    const { name, description } = req.body;
+
+    console.log('[ORG-CONTROLLER] Updating current organization:', organizationId);
+
+    const organization = await Organization.findById(organizationId);
+    if (!organization) {
+      return res.status(404).json({ error: 'Organization not found' });
+    }
+
+    // Update fields
+    if (name) organization.name = name;
+    if (description !== undefined) organization.description = description;
+    organization.updatedAt = Date.now();
+
+    await organization.save();
+
+    console.log('[ORG-CONTROLLER] Organization updated:', organization.name);
+
+    res.json({
+      message: 'Organization updated successfully',
+      organization: {
+        _id: organization._id,
+        name: organization.name,
+        slug: organization.slug,
+        description: organization.description || '',
+        status: organization.status,
+        createdAt: organization.createdAt,
+        updatedAt: organization.updatedAt
+      }
+    });
+  } catch (error) {
+    console.error('Update organization error:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+/**
  * Get current organization's members
  */
 exports.getCurrentOrganizationMembers = async (req, res) => {
