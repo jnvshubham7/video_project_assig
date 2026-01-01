@@ -1,0 +1,241 @@
+.header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 12px 0;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 20px;
+}
+
+.logo {
+  cursor: pointer;
+  transition: transform 0.2s;
+  display: flex;
+  align-items: center;
+}
+
+.logo:hover {
+  transform: scale(1.05);
+}
+
+.logo h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-links {
+  display: flex;
+  gap: 10px;
+}
+
+.nav-link {
+  color: white;
+  text-decoration: none;
+  padding: 8px 14px;
+  border-radius: 5px;
+  transition: background 0.2s;
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.nav-link:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.register-link {
+  background: rgba(255, 255, 255, 0.25);
+  font-weight: 600;
+}
+
+.register-link:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.nav-authenticated {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-item {
+  color: white;
+  text-decoration: none;
+  padding: 7px 12px;
+  border-radius: 5px;
+  transition: all 0.2s;
+  font-weight: 500;
+  font-size: 13px;
+  position: relative;
+}
+
+.nav-item:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+}
+
+.nav-item.upload-link {
+  background: rgba(255, 255, 255, 0.25);
+  font-weight: 600;
+}
+
+.nav-item.upload-link:hover {
+  background: rgba(255, 255, 255, 0.35);
+  transform: translateY(-1px);
+}
+
+.user-info {
+  font-weight: 500;
+  font-size: 12px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 5px;
+  white-space: nowrap;
+}
+
+.org-info {
+  font-weight: 500;
+  font-size: 11px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 5px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.org-info:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.user-org-info {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.org-dropdown-container {
+  position: relative;
+}
+
+.dropdown-arrow {
+  font-size: 9px;
+  margin-left: 4px;
+  transition: transform 0.2s;
+  display: inline-block;
+}
+
+.org-info.active .dropdown-arrow {
+  transform: rotate(180deg);
+}
+
+.org-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 5px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  min-width: 200px;
+  z-index: 1000;
+  margin-top: 4px;
+}
+
+.org-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  background: white;
+  color: #333;
+  cursor: pointer;
+  text-align: left;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.org-option:hover {
+  background: #f5f5f5;
+}
+
+.org-option.active {
+  background: #e8f5e9;
+  font-weight: 600;
+  color: #2e7d32;
+}
+
+.org-role {
+  font-size: 10px;
+  color: #999;
+  margin-left: 8px;
+}
+
+.org-option.active .org-role {
+  color: #2e7d32;
+}
+}
+
+.logout-btn {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 7px 14px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.logout-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
+  .header-container {
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .logo h1 {
+    font-size: 20px;
+  }
+
+  .nav {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .nav-links {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .nav-authenticated {
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+}
