@@ -1,6 +1,6 @@
 .videos-container {
   min-height: calc(100vh - 80px);
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: linear-gradient(135deg, #f5f7fa 0%, #eff2f5 100%);
   padding: 40px 20px;
 }
 
@@ -14,8 +14,9 @@
 
 .videos-header h2 {
   font-size: 32px;
-  color: #333;
+  color: #1a1a1a;
   margin: 0;
+  font-weight: 700;
 }
 
 .upload-btn {
@@ -412,7 +413,7 @@
 
 .error-container {
   min-height: calc(100vh - 80px);
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: linear-gradient(135deg, #f5f7fa 0%, #eff2f5 100%);
   padding: 40px 20px;
   display: flex;
   flex-direction: column;
@@ -432,7 +433,7 @@
   background: white;
   padding: 20px;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .search-input,
@@ -443,6 +444,8 @@
   font-size: 14px;
   font-family: inherit;
   transition: border-color 0.2s;
+  background-color: #ffffff;
+  color: #333;
 }
 
 .search-input {
@@ -454,6 +457,7 @@
 .sort-select:focus {
   outline: none;
   border-color: #667eea;
+  background-color: #ffffff;
 }
 
 .sort-select {
@@ -481,12 +485,15 @@
   font-size: 14px;
   margin-bottom: 8px;
   resize: none;
+  background-color: #ffffff;
+  color: #333;
 }
 
 .edit-input:focus,
 .edit-textarea:focus {
   outline: none;
   border-color: #667eea;
+  background-color: #ffffff;
 }
 
 .edit-textarea {

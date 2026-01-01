@@ -110,7 +110,10 @@ class SocketService {
    */
   switchOrganizationRoom(newOrganizationId) {
     if (!this.socket?.connected) {
-      console.log('[SOCKET] Not connected, cannot switch room');
+      console.log('[SOCKET] Socket not connected, reconnecting with new org:', newOrganizationId);
+      // Socket is disconnected, just reconnect with new org
+      this.disconnect();
+      this.connect(newOrganizationId);
       return;
     }
 

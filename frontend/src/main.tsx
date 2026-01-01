@@ -12,11 +12,22 @@ if (token) {
 }
 
 // Initialize Socket.io connection if authenticated
-const org = localStorage.getItem('organization');
-if (token && org) {
+if (token) {
   try {
-    const organization = JSON.parse(org);
-    socketService.connect(organization.id);
+    // Decode JWT token to get organizationId
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64).split('').map((c) => {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join('')
+    );
+    const decoded = JSON.parse(jsonPayload);
+    
+    if (decoded.organizationId) {
+      console.log('[MAIN] Initializing socket with org from token:', decoded.organizationId);
+      socketService.connect(decoded.organizationId);
+    }
   } catch (error) {
     console.error('Failed to initialize socket:', error);
   }
