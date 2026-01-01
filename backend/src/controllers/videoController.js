@@ -1,5 +1,6 @@
 const Video = require('../models/Video');
 const cloudinary = require('cloudinary').v2;
+const contentAnalysisService = require('../services/contentAnalysisService');
 
 // Configure Cloudinary (in case it's not already configured)
 cloudinary.config({
@@ -25,6 +26,19 @@ exports.uploadVideo = async (req, res) => {
     const cloudinaryUrl = req.file.path; // Full URL from Cloudinary
     const cloudinaryPublicId = req.file.filename; // Public ID from Cloudinary
 
+    // Analyze video content for safety
+    let safetyStatus = 'safe';
+    try {
+      safetyStatus = await contentAnalysisService.analyzeSafety(
+        cloudinaryUrl,
+        title,
+        description || ''
+      );
+    } catch (analysisError) {
+      console.error('Content analysis failed, defaulting to safe:', analysisError);
+      safetyStatus = 'safe';
+    }
+
     const video = new Video({
       title,
       description: description || '',
@@ -32,7 +46,8 @@ exports.uploadVideo = async (req, res) => {
       filepath: cloudinaryUrl, // Store Cloudinary URL
       cloudinaryPublicId: cloudinaryPublicId, // Store public ID for deletion
       userId: req.userId,
-      size: req.file.size
+      size: req.file.size,
+      safetyStatus: safetyStatus // Set safety status from analysis
     });
 
     await video.save();
@@ -49,7 +64,15 @@ exports.uploadVideo = async (req, res) => {
 // Get all videos for current user
 exports.getUserVideos = async (req, res) => {
   try {
-    const videos = await Video.find({ userId: req.userId }).sort({ createdAt: -1 });
+    const { safetyStatus } = req.query;
+    let query = { userId: req.userId };
+
+    // Build query filter for safety status
+    if (safetyStatus && (safetyStatus === 'safe' || safetyStatus === 'flagged')) {
+      query.safetyStatus = safetyStatus;
+    }
+
+    const videos = await Video.find(query).sort({ createdAt: -1 });
     res.json({ videos });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -59,7 +82,15 @@ exports.getUserVideos = async (req, res) => {
 // Get all videos (public)
 exports.getAllVideos = async (req, res) => {
   try {
-    const videos = await Video.find().populate('userId', 'username').sort({ createdAt: -1 });
+    const { safetyStatus } = req.query;
+    let query = {};
+
+    // Build query filter for safety status
+    if (safetyStatus && (safetyStatus === 'safe' || safetyStatus === 'flagged')) {
+      query.safetyStatus = safetyStatus;
+    }
+
+    const videos = await Video.find(query).populate('userId', 'username').sort({ createdAt: -1 });
     res.json({ videos });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -141,6 +172,82 @@ exports.updateVideo = async (req, res) => {
 
     res.json({
       message: 'Video updated successfully',
+      video
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Update video safety status (flag/unflag)
+exports.updateVideoSafetyStatus = async (req, res) => {
+  try {
+    const { safetyStatus } = req.body;
+    const video = await Video.findById(req.params.id);
+
+    if (!video) {
+      return res.status(404).json({ error: 'Video not found' });
+    }
+
+    // Check if user owns the video
+    if (video.userId.toString() !== req.userId) {
+      return res.status(403).json({ error: 'Not authorized to update this video' });
+    }
+
+    // Validate safety status value
+    if (!safetyStatus || !['safe', 'flagged'].includes(safetyStatus)) {
+      return res.status(400).json({ error: 'Invalid safety status. Must be "safe" or "flagged"' });
+    }
+
+    video.safetyStatus = safetyStatus;
+    video.updatedAt = Date.now();
+
+    await video.save();
+
+    res.json({
+      message: `Video marked as ${safetyStatus}`,
+      video
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Re-analyze video safety (admin/owner functionality)
+exports.reanalyzeSafety = async (req, res) => {
+  try {
+    const video = await Video.findById(req.params.id);
+
+    if (!video) {
+      return res.status(404).json({ error: 'Video not found' });
+    }
+
+    // Check if user owns the video
+    if (video.userId.toString() !== req.userId) {
+      return res.status(403).json({ error: 'Not authorized to reanalyze this video' });
+    }
+
+    // Run content analysis again
+    let safetyStatus = 'safe';
+    try {
+      safetyStatus = await contentAnalysisService.analyzeSafety(
+        video.filepath,
+        video.title,
+        video.description
+      );
+    } catch (analysisError) {
+      console.error('Content analysis failed:', analysisError);
+      return res.status(500).json({ error: 'Failed to analyze video content' });
+    }
+
+    video.safetyStatus = safetyStatus;
+    video.updatedAt = Date.now();
+
+    await video.save();
+
+    res.json({
+      message: 'Video re-analyzed successfully',
+      safetyStatus: safetyStatus,
       video
     });
   } catch (error) {

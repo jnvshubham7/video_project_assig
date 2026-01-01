@@ -9,6 +9,8 @@ const router = express.Router();
 router.post('/upload', authMiddleware, upload.single('video'), videoController.uploadVideo);
 router.get('/user/myvideos', authMiddleware, videoController.getUserVideos);
 router.put('/:id', authMiddleware, videoController.updateVideo);
+router.put('/:id/safety', authMiddleware, videoController.updateVideoSafetyStatus);
+router.post('/:id/reanalyze', authMiddleware, videoController.reanalyzeSafety);
 router.delete('/:id', authMiddleware, videoController.deleteVideo);
 
 // Public routes (less specific routes last)

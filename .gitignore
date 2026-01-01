@@ -28,6 +28,7 @@ Thumbs.db
 *.md
 *.txt
 *.pdf
+*.docx
 
 # Logs
 logs/

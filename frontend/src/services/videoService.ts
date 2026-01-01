@@ -83,6 +83,24 @@ export const videoAPI = {
         headers: getAuthHeader()
       })
     );
+  },
+
+  updateVideoSafetyStatus: (id: string, safetyStatus: 'safe' | 'flagged') => {
+    return retryRequest(() => 
+      axios.put(`${API_BASE_URL}/videos/${id}/safety`, {
+        safetyStatus
+      }, {
+        headers: getAuthHeader()
+      })
+    );
+  },
+
+  reanalyzeSafety: (id: string) => {
+    return retryRequest(() => 
+      axios.post(`${API_BASE_URL}/videos/${id}/reanalyze`, {}, {
+        headers: getAuthHeader()
+      })
+    );
   }
 };
 

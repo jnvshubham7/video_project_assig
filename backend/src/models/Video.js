@@ -41,6 +41,12 @@ const videoSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  safetyStatus: {
+    type: String,
+    enum: ['safe', 'flagged'],
+    default: 'safe',
+    required: true
+  },
   createdAt: {
     type: Date,
     default: Date.now

@@ -9,6 +9,7 @@ interface Video {
   filepath: string;
   views: number;
   createdAt: string;
+  safetyStatus?: 'safe' | 'flagged';
   userId?: { username: string };
 }
 
@@ -18,20 +19,26 @@ export function AllVideos() {
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'date' | 'views' | 'title'>('date');
+  const [safetyFilter, setSafetyFilter] = useState<'all' | 'safe' | 'flagged'>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const videosPerPage = 12;
 
   useEffect(() => {
     fetchVideos();
-  }, []);
+  }, [safetyFilter]);
 
   const fetchVideos = async () => {
     try {
       setLoading(true);
-      const response = await videoAPI.getAllVideos();
-      setVideos(response.data.videos);
+      let url = `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/videos`;
+      if (safetyFilter !== 'all') {
+        url += `?safetyStatus=${safetyFilter}`;
+      }
+      const response = await fetch(url);
+      const data = await response.json();
+      setVideos(data.videos);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to load videos');
+      setError(err.message || 'Failed to load videos');
     } finally {
       setLoading(false);
     }
@@ -89,6 +96,11 @@ export function AllVideos() {
             <option value="views">Sort by Views (Most)</option>
             <option value="title">Sort by Title (A-Z)</option>
           </select>
+          <select value={safetyFilter} onChange={(e) => setSafetyFilter(e.target.value as any)} className="sort-select">
+            <option value="all">All Videos</option>
+            <option value="safe">Safe Content Only</option>
+            <option value="flagged">Flagged Content</option>
+          </select>
           {searchTerm && <span className="search-result-count">{filteredVideos.length} results</span>}
         </div>
       )}
@@ -111,6 +123,11 @@ export function AllVideos() {
                   <div className="video-overlay">
                     <a href={`/video/${video._id}`} className="play-btn">▶</a>
                   </div>
+                  {video.safetyStatus && (
+                    <div className={`safety-badge ${video.safetyStatus}`}>
+                      {video.safetyStatus === 'flagged' ? '⚠️ Flagged' : '✓ Safe'}
+                    </div>
+                  )}
                 </div>
                 <div className="video-info">
                   <h3>{video.title}</h3>

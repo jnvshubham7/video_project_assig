@@ -354,6 +354,25 @@
   margin-bottom: 20px;
   color: #666;
   font-size: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.safety-status {
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.safety-status.safe {
+  background: rgba(52, 211, 153, 0.1);
+  color: #059669;
+}
+
+.safety-status.flagged {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
 }
 
 .uploader-info {
@@ -630,5 +649,72 @@
   .pagination {
     flex-direction: column;
   }
+}
+
+/* Safety Badge Styles */
+.safety-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  z-index: 10;
+}
+
+.safety-badge.safe {
+  background: rgba(52, 211, 153, 0.9);
+  color: white;
+}
+
+.safety-badge.flagged {
+  background: rgba(239, 68, 68, 0.9);
+  color: white;
+}
+
+/* Safety Controls */
+.safety-controls {
+  margin: 12px 0;
+  padding: 12px;
+  background: #f3f4f6;
+  border-radius: 8px;
+  border-left: 3px solid #667eea;
+}
+
+.safety-controls small {
+  display: block;
+  margin-bottom: 8px;
+  color: #666;
+}
+
+.safety-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.safety-btn {
+  flex: 1;
+  padding: 6px 12px;
+  border: 1px solid #ddd;
+  background: white;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: #666;
+}
+
+.safety-btn:hover {
+  border-color: #667eea;
+  color: #667eea;
+  background: #f0f4ff;
+}
+
+.safety-btn.active {
+  background: #667eea;
+  color: white;
+  border-color: #667eea;
 }
 

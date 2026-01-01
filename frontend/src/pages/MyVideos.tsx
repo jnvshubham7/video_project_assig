@@ -10,6 +10,7 @@ interface Video {
   filepath: string;
   views: number;
   createdAt: string;
+  safetyStatus?: 'safe' | 'flagged';
   userId?: { username: string };
 }
 
@@ -101,6 +102,31 @@ export function MyVideos() {
     }
   };
 
+  const handleUpdateSafetyStatus = async (videoId: string, newStatus: 'safe' | 'flagged') => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/videos/${videoId}/safety`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ safetyStatus: newStatus })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update safety status');
+      }
+
+      setVideos(videos.map(v => v._id === videoId ? { ...v, safetyStatus: newStatus } : v));
+      addToast(`Video marked as ${newStatus}`, 'success');
+    } catch (err: any) {
+      const errorMsg = err.message || 'Failed to update safety status';
+      addToast(errorMsg, 'error');
+    }
+  };
+
   if (loading) {
     return (
       <div className="videos-container">
@@ -165,6 +191,11 @@ export function MyVideos() {
                 <div className="video-overlay">
                   <a href={`/video/${video._id}`} className="play-btn">▶</a>
                 </div>
+                {video.safetyStatus && (
+                  <div className={`safety-badge ${video.safetyStatus}`}>
+                    {video.safetyStatus === 'flagged' ? '⚠️ Flagged' : '✓ Safe'}
+                  </div>
+                )}
               </div>
               <div className="video-info">
                 {editingId === video._id ? (
@@ -198,6 +229,27 @@ export function MyVideos() {
                       <span>👁️ {video.views} views</span>
                       <span>📅 {new Date(video.createdAt).toLocaleDateString()}</span>
                     </div>
+                    {video.safetyStatus && (
+                      <div className="safety-controls">
+                        <small>Safety Status: <strong>{video.safetyStatus}</strong></small>
+                        <div className="safety-buttons">
+                          <button 
+                            className={`safety-btn ${video.safetyStatus === 'safe' ? 'active' : ''}`}
+                            onClick={() => handleUpdateSafetyStatus(video._id, 'safe')}
+                            title="Mark as safe"
+                          >
+                            ✓ Safe
+                          </button>
+                          <button 
+                            className={`safety-btn ${video.safetyStatus === 'flagged' ? 'active' : ''}`}
+                            onClick={() => handleUpdateSafetyStatus(video._id, 'flagged')}
+                            title="Mark as flagged"
+                          >
+                            ⚠️ Flag
+                          </button>
+                        </div>
+                      </div>
+                    )}
                     <div className="video-actions">
                       <button 
                         className="edit-btn"

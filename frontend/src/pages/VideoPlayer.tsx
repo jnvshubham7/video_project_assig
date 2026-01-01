@@ -11,6 +11,7 @@ interface Video {
   filepath: string;
   views: number;
   createdAt: string;
+  safetyStatus?: 'safe' | 'flagged';
   userId?: { username: string };
 }
 
@@ -87,6 +88,11 @@ export function VideoPlayer() {
         <div className="video-meta">
           <span>👁️ {video.views} views</span>
           <span>📅 {new Date(video.createdAt).toLocaleDateString()}</span>
+          {video.safetyStatus && (
+            <span className={`safety-status ${video.safetyStatus}`}>
+              {video.safetyStatus === 'flagged' ? '⚠️ Flagged Content' : '✓ Safe Content'}
+            </span>
+          )}
         </div>
 
         <div className="uploader-info">
