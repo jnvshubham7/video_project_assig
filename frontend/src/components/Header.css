@@ -110,6 +110,22 @@
   white-space: nowrap;
 }
 
+.org-info {
+  font-weight: 500;
+  font-size: 11px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 5px;
+  white-space: nowrap;
+}
+
+.user-org-info {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+}
+
 .logout-btn {
   background: rgba(255, 255, 255, 0.2);
   color: white;

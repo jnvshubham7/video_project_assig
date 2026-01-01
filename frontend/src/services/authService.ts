@@ -2,20 +2,53 @@ import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
+export interface Organization {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+export interface User {
+  _id: string;
+  username: string;
+  email: string;
+  role: string;
+  organizationId: string;
+}
+
+export interface LoginResponse {
+  token: string;
+  user: User;
+  organization: Organization;
+}
+
+export interface RegisterResponse {
+  token: string;
+  user: User;
+  organization: Organization;
+}
+
 export const authAPI = {
-  register: (username: string, email: string, password: string, confirmPassword: string) => {
-    return axios.post(`${API_BASE_URL}/auth/register`, {
+  register: (username: string, email: string, password: string, confirmPassword: string, organizationName?: string) => {
+    return axios.post<RegisterResponse>(`${API_BASE_URL}/auth/register`, {
       username,
       email,
       password,
-      confirmPassword
+      confirmPassword,
+      organizationName
     });
   },
 
   login: (email: string, password: string) => {
-    return axios.post(`${API_BASE_URL}/auth/login`, {
+    return axios.post<LoginResponse>(`${API_BASE_URL}/auth/login`, {
       email,
       password
+    });
+  },
+
+  getCurrentUser: () => {
+    return axios.get<{ user: User; organization: Organization }>(`${API_BASE_URL}/auth/me`, {
+      headers: { 'Authorization': `Bearer ${getAuthToken()}` }
     });
   }
 };
@@ -30,15 +63,26 @@ export const setAuthToken = (token: string) => {
   }
 };
 
+export const setOrganization = (organization: Organization) => {
+  localStorage.setItem('organization', JSON.stringify(organization));
+};
+
+export const getOrganization = (): Organization | null => {
+  const org = localStorage.getItem('organization');
+  return org ? JSON.parse(org) : null;
+};
+
 export const getAuthToken = () => {
   return localStorage.getItem('token');
 };
 
 export const clearAuthToken = () => {
   localStorage.removeItem('token');
+  localStorage.removeItem('organization');
   delete axios.defaults.headers.common['Authorization'];
 };
 
 export const isAuthenticated = () => {
   return !!getAuthToken();
 };
+

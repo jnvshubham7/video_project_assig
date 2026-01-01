@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { clearAuthToken, getAuthToken } from '../services/authService';
+import { clearAuthToken, getAuthToken, getOrganization } from '../services/authService';
 import { useState, useEffect } from 'react';
 import './Header.css';
 
@@ -8,6 +8,7 @@ export function Header() {
   const location = useLocation();
   const [authenticated, setAuthenticated] = useState(() => !!getAuthToken());
   const [user, setUser] = useState<any>(null);
+  const [organization, setOrganizationState] = useState<any>(null);
 
   useEffect(() => {
     const token = getAuthToken();
@@ -22,6 +23,10 @@ export function Header() {
         setUser(null);
       }
     }
+    
+    // Get organization from storage
+    const org = getOrganization();
+    setOrganizationState(org);
   }, [location]);
 
   // Listen to storage changes for real-time updates
@@ -48,6 +53,7 @@ export function Header() {
     localStorage.removeItem('user');
     setAuthenticated(false);
     setUser(null);
+    setOrganizationState(null);
     navigate('/login');
   };
 
@@ -69,7 +75,11 @@ export function Header() {
               <a href="/videos" className="nav-item">All Videos</a>
               <a href="/my-videos" className="nav-item">My Videos</a>
               <a href="/upload" className="nav-item upload-link">+ Upload</a>
-              <span className="user-info">👤 {user?.username || 'User'}</span>
+              <a href="/organization" className="nav-item">Organization</a>
+              <div className="user-org-info">
+                <span className="user-info">👤 {user?.username || 'User'}</span>
+                {organization && <span className="org-info">🏢 {organization.name}</span>}
+              </div>
               <button onClick={handleLogout} className="logout-btn">
                 Logout
               </button>

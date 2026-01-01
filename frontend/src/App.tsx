@@ -6,6 +6,8 @@ import { UploadVideo } from './pages/UploadVideo';
 import { MyVideos } from './pages/MyVideos';
 import { AllVideos } from './pages/AllVideos';
 import { VideoPlayer } from './pages/VideoPlayer';
+import { OrganizationSettings } from './pages/OrganizationSettings';
+import { MemberManagement } from './pages/MemberManagement';
 import { Header } from './components/Header';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import './App.css';
@@ -36,6 +38,22 @@ function App() {
         />
         <Route path="/videos" element={<AllVideos />} />
         <Route path="/video/:id" element={<VideoPlayer />} />
+        <Route 
+          path="/organization" 
+          element={
+            <ProtectedRoute>
+              <OrganizationSettings />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/members" 
+          element={
+            <ProtectedRoute>
+              <MemberManagement />
+            </ProtectedRoute>
+          } 
+        />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>

@@ -5,14 +5,12 @@ const userSchema = new mongoose.Schema({
   username: {
     type: String,
     required: [true, 'Username is required'],
-    unique: true,
     trim: true,
     minlength: 3
   },
   email: {
     type: String,
     required: [true, 'Email is required'],
-    unique: true,
     lowercase: true,
     match: [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/, 'Please provide a valid email']
   },
@@ -22,11 +20,53 @@ const userSchema = new mongoose.Schema({
     minlength: 6,
     select: false
   },
+  organizationId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Organization',
+    required: true
+  },
+  role: {
+    type: String,
+    enum: ['admin', 'member'],
+    default: 'member'
+  },
+  permissions: {
+    canUploadVideos: {
+      type: Boolean,
+      default: true
+    },
+    canDeleteVideos: {
+      type: Boolean,
+      default: true
+    },
+    canViewAllVideos: {
+      type: Boolean,
+      default: true
+    },
+    canManageUsers: {
+      type: Boolean,
+      default: false
+    },
+    canManageOrganization: {
+      type: Boolean,
+      default: false
+    }
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  },
   createdAt: {
     type: Date,
     default: Date.now
   }
 });
+
+// Create compound unique index for username within organization
+userSchema.index({ username: 1, organizationId: 1 }, { unique: true });
+
+// Create compound unique index for email within organization
+userSchema.index({ email: 1, organizationId: 1 }, { unique: true });
 
 // Hash password before saving
 userSchema.pre('save', async function(next) {

@@ -28,7 +28,25 @@ const retryRequest = async (fn: () => Promise<any>, maxRetries = 3, delay = 1000
   }
 };
 
+export interface Video {
+  _id: string;
+  title: string;
+  description: string;
+  filename: string;
+  filepath: string;
+  userId: string;
+  organizationId: string;
+  duration: number;
+  size: number;
+  views: number;
+  isPublic: boolean;
+  allowedUsers: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export const videoAPI = {
+  // Upload video to user's organization
   uploadVideo: (formData: FormData, onProgress?: (progress: number) => void) => {
     return retryRequest(() => 
       axios.post(`${API_BASE_URL}/videos/upload`, formData, {
@@ -46,6 +64,7 @@ export const videoAPI = {
     );
   },
 
+  // Get user's videos
   getUserVideos: () => {
     return retryRequest(() => 
       axios.get(`${API_BASE_URL}/videos/user/myvideos`, {
@@ -54,35 +73,53 @@ export const videoAPI = {
     );
   },
 
-  getAllVideos: () => {
+  // Get all videos in user's organization
+  getOrganizationVideos: () => {
     return retryRequest(() => 
-      axios.get(`${API_BASE_URL}/videos`)
+      axios.get(`${API_BASE_URL}/videos/org/all`, {
+        headers: getAuthHeader()
+      })
     );
   },
 
+  // Get all public videos (no auth required)
+  getPublicVideos: () => {
+    return retryRequest(() => 
+      axios.get(`${API_BASE_URL}/videos/public/all`)
+    );
+  },
+
+  // Get video by ID with access control
   getVideoById: (id: string) => {
     return retryRequest(() => 
       axios.get(`${API_BASE_URL}/videos/${id}`)
     );
   },
 
-  updateVideo: (id: string, title: string, description: string) => {
+  // Update video details
+  updateVideo: (id: string, data: { title?: string; description?: string; isPublic?: boolean }) => {
     return retryRequest(() => 
-      axios.put(`${API_BASE_URL}/videos/${id}`, {
-        title,
-        description
-      }, {
+      axios.put(`${API_BASE_URL}/videos/${id}`, data, {
         headers: getAuthHeader()
       })
     );
   },
 
+  // Delete video
   deleteVideo: (id: string) => {
     return retryRequest(() => 
       axios.delete(`${API_BASE_URL}/videos/${id}`, {
         headers: getAuthHeader()
       })
     );
+  },
+
+  // Share video with specific users in organization
+  shareVideo: (id: string, userIds: string[]) => {
+    return retryRequest(() =>
+      axios.post(`${API_BASE_URL}/videos/${id}/share`, { userIds }, {
+        headers: getAuthHeader()
+      })
+    );
   }
 };
-

@@ -1,18 +1,60 @@
 const express = require('express');
 const videoController = require('../controllers/videoController');
 const authMiddleware = require('../middleware/authMiddleware');
+const { tenantMiddleware, checkPermission, organizationAccess } = require('../middleware/tenantMiddleware');
 const upload = require('../config/multerConfig');
 
 const router = express.Router();
 
-// Protected routes (more specific routes first)
-router.post('/upload', authMiddleware, upload.single('video'), videoController.uploadVideo);
-router.get('/user/myvideos', authMiddleware, videoController.getUserVideos);
-router.put('/:id', authMiddleware, videoController.updateVideo);
-router.delete('/:id', authMiddleware, videoController.deleteVideo);
+// Protected routes (require authentication and tenant validation)
+router.post('/upload', 
+  authMiddleware, 
+  tenantMiddleware, 
+  organizationAccess,
+  checkPermission('canUploadVideos'),
+  upload.single('video'), 
+  videoController.uploadVideo
+);
 
-// Public routes (less specific routes last)
-router.get('/', videoController.getAllVideos);
+router.get('/user/myvideos', 
+  authMiddleware, 
+  tenantMiddleware, 
+  organizationAccess,
+  videoController.getUserVideos
+);
+
+router.get('/org/all', 
+  authMiddleware, 
+  tenantMiddleware, 
+  organizationAccess,
+  videoController.getOrganizationVideos
+);
+
+router.put('/:id', 
+  authMiddleware, 
+  tenantMiddleware, 
+  organizationAccess,
+  videoController.updateVideo
+);
+
+router.delete('/:id', 
+  authMiddleware, 
+  tenantMiddleware, 
+  organizationAccess,
+  checkPermission('canDeleteVideos'),
+  videoController.deleteVideo
+);
+
+router.post('/:id/share',
+  authMiddleware,
+  tenantMiddleware,
+  organizationAccess,
+  videoController.shareVideo
+);
+
+// Public routes (accessible without authentication)
+router.get('/public/all', videoController.getAllPublicVideos);
 router.get('/:id', videoController.getVideoById);
 
 module.exports = router;
+

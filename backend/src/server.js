@@ -35,6 +35,7 @@ connectDB();
 // Routes
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/videos', require('./routes/videoRoutes'));
+app.use('/api/org', require('./routes/organizationRoutes'));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

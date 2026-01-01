@@ -9,7 +9,8 @@ export function Register() {
     username: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    organizationName: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -58,6 +59,16 @@ export function Register() {
       return false;
     }
 
+    if (!formData.organizationName.trim()) {
+      setError('Organization name is required');
+      return false;
+    }
+
+    if (formData.organizationName.trim().length < 2) {
+      setError('Organization name must be at least 2 characters');
+      return false;
+    }
+
     return true;
   };
 
@@ -72,12 +83,19 @@ export function Register() {
     setLoading(true);
 
     try {
-      await authAPI.register(
+      const response = await authAPI.register(
         formData.username,
         formData.email,
         formData.password,
-        formData.confirmPassword
+        formData.confirmPassword,
+        formData.organizationName
       );
+      
+      // Import and use auth service functions
+      const { setAuthToken, setOrganization } = await import('../services/authService');
+      setAuthToken(response.data.token);
+      setOrganization(response.data.organization);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
       setTimeout(() => {
         navigate('/login');
       }, 1000);
@@ -94,6 +112,16 @@ export function Register() {
         <h2>Register</h2>
         {error && <div className="error-message">{error}</div>}
         <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label>Organization Name</label>
+            <input
+              type="text"
+              name="organizationName"
+              value={formData.organizationName}
+              onChange={handleChange}
+              placeholder="Your organization name"
+            />
+          </div>
           <div className="form-group">
             <label>Username</label>
             <input

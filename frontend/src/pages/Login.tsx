@@ -56,7 +56,9 @@ export function Login() {
 
     try {
       const response = await authAPI.login(formData.email, formData.password);
+      const { setOrganization } = await import('../services/authService');
       setAuthToken(response.data.token);
+      setOrganization(response.data.organization);
       localStorage.setItem('user', JSON.stringify(response.data.user));
       
       // Redirect to home after login
