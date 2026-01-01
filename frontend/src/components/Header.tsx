@@ -7,7 +7,8 @@ import './Header.css';
 export function Header() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { currentOrganization, organizations, switchOrganization } = useOrganization();
+  const organizationContext = useOrganization();
+  const { currentOrganization, organizations, switchOrganization } = organizationContext;
   const [authenticated, setAuthenticated] = useState(() => !!getAuthToken());
   const [user, setUser] = useState<any>(null);
   const [showOrgDropdown, setShowOrgDropdown] = useState(false);
@@ -105,7 +106,7 @@ export function Header() {
                       🏢 {currentOrganization.name} ({currentOrganization.role})
                       <span className="dropdown-arrow">▼</span>
                     </button>
-                    {showOrgDropdown && organizations.length > 1 && (
+                    {showOrgDropdown && organizations && organizations.length > 1 && (
                       <div className="org-dropdown">
                         {organizations.map(org => (
                           <button

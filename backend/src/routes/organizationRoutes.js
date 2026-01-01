@@ -20,6 +20,52 @@ router.post('/',
   organizationController.createOrganization
 );
 
+// Get current organization (from token)
+router.get('/',
+  authMiddleware,
+  organizationMiddleware,
+  organizationController.getCurrentOrganization
+);
+
+// Get current organization's members
+router.get('/members',
+  authMiddleware,
+  organizationMiddleware,
+  organizationController.getCurrentOrganizationMembers
+);
+
+// Add/invite member to current organization (admin only)
+router.post('/members',
+  authMiddleware,
+  organizationMiddleware,
+  rbacMiddleware('admin'),
+  organizationController.addMemberToCurrent
+);
+
+// Invite user to current organization (alias for POST /members)
+router.post('/invite',
+  authMiddleware,
+  organizationMiddleware,
+  rbacMiddleware('admin'),
+  organizationController.addMemberToCurrent
+);
+
+// Remove member from current organization (admin only)
+router.delete('/members/:userId',
+  authMiddleware,
+  organizationMiddleware,
+  rbacMiddleware('admin'),
+  organizationController.removeMemberFromCurrent
+);
+
+// Update member role in current organization (admin only)
+router.put('/members/:userId/role',
+  authMiddleware,
+  organizationMiddleware,
+  rbacMiddleware('admin'),
+  organizationController.updateMemberRoleInCurrent
+);
+
 // Get current user's organizations
 router.get('/my-organizations',
   authMiddleware,

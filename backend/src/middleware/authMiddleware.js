@@ -12,8 +12,16 @@ const authMiddleware = (req, res, next) => {
     req.userId = decoded.userId;
     req.userEmail = decoded.email;
     req.organizationId = decoded.organizationId;
+    
+    console.log('[AUTH MIDDLEWARE] Decoded token:', {
+      userId: req.userId,
+      email: req.userEmail,
+      organizationId: req.organizationId
+    });
+    
     next();
   } catch (error) {
+    console.error('[AUTH MIDDLEWARE] Token verification failed:', error.message);
     res.status(401).json({ error: 'Invalid or expired token' });
   }
 };

@@ -82,18 +82,28 @@ exports.register = async (req, res) => {
       role: 'admin'
     });
 
+    console.log('[REGISTER] Creating membership for user:', user._id, 'org:', organization._id);
     await membership.save();
+    console.log('[REGISTER] Membership saved successfully');
+
+    // Verify membership was created
+    const verifyMembership = await OrganizationMember.findOne({
+      userId: user._id,
+      organizationId: organization._id
+    });
+    console.log('[REGISTER] Membership verification:', verifyMembership ? 'FOUND' : 'NOT FOUND');
 
     // Generate JWT token with selected organization
     const token = jwt.sign(
       { 
-        userId: user._id, 
+        userId: user._id.toString(), 
         email: user.email, 
-        organizationId: organization._id 
+        organizationId: organization._id.toString() 
       },
       process.env.JWT_SECRET || 'secret',
       { expiresIn: '7d' }
     );
+    console.log('[REGISTER] Token generated with org:', organization._id.toString());
 
     res.status(201).json({
       message: 'User registered successfully',
@@ -144,6 +154,11 @@ exports.login = async (req, res) => {
     const memberships = await OrganizationMember.find({ userId: user._id })
       .populate('organizationId');
 
+    console.log('[LOGIN] User:', user._id, 'Memberships found:', memberships.length);
+    memberships.forEach(m => {
+      console.log('[LOGIN]   - Org:', m.organizationId._id, 'Role:', m.role);
+    });
+
     if (memberships.length === 0) {
       return res.status(403).json({ error: 'User is not part of any organization' });
     }
@@ -155,13 +170,15 @@ exports.login = async (req, res) => {
     // Generate JWT token with default organization
     const token = jwt.sign(
       { 
-        userId: user._id, 
+        userId: user._id.toString(), 
         email: user.email, 
-        organizationId: defaultOrg._id 
+        organizationId: defaultOrg._id.toString() 
       },
       process.env.JWT_SECRET || 'secret',
       { expiresIn: '7d' }
     );
+
+    console.log('[LOGIN] Token generated. User ID:', user._id.toString(), 'Org ID:', defaultOrg._id.toString());
 
     res.json({
       message: 'Login successful',

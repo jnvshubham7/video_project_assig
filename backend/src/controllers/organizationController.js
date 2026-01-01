@@ -270,3 +270,241 @@ exports.createOrganization = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+/**
+ * Get current organization (from token)
+ * Used by frontend to load org settings
+ */
+exports.getCurrentOrganization = async (req, res) => {
+  try {
+    const organizationId = req.organizationId;
+
+    const organization = await Organization.findById(organizationId);
+    if (!organization) {
+      return res.status(404).json({ error: 'Organization not found' });
+    }
+
+    // Get all members of this organization
+    const members = await OrganizationMember.find({ organizationId })
+      .populate('userId', 'username email isActive');
+
+    res.json({
+      organization: {
+        _id: organization._id,
+        name: organization.name,
+        slug: organization.slug,
+        description: organization.description || '',
+        status: organization.status,
+        createdAt: organization.createdAt,
+        updatedAt: organization.updatedAt
+      },
+      members: members.map(m => ({
+        _id: m._id,
+        userId: {
+          _id: m.userId._id,
+          username: m.userId.username,
+          email: m.userId.email,
+          isActive: m.userId.isActive
+        },
+        role: m.role,
+        joinedAt: m.joinedAt
+      }))
+    });
+  } catch (error) {
+    console.error('Get current organization error:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+/**
+ * Get current organization's members
+ */
+exports.getCurrentOrganizationMembers = async (req, res) => {
+  try {
+    const organizationId = req.organizationId;
+
+    const members = await OrganizationMember.find({ organizationId })
+      .populate('userId', 'username email isActive');
+
+    res.json({
+      members: members.map(m => ({
+        _id: m._id,
+        userId: {
+          _id: m.userId._id,
+          username: m.userId.username,
+          email: m.userId.email,
+          isActive: m.userId.isActive,
+          createdAt: m.userId.createdAt
+        },
+        role: m.role,
+        joinedAt: m.joinedAt
+      })),
+      count: members.length
+    });
+  } catch (error) {
+    console.error('Get current organization members error:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+/**
+ * Add member to current organization
+ */
+exports.addMemberToCurrent = async (req, res) => {
+  try {
+    const organizationId = req.organizationId;
+    const { email, role } = req.body;
+
+    if (!email || !role) {
+      return res.status(400).json({ error: 'Email and role are required' });
+    }
+
+    if (!['admin', 'editor', 'viewer'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid role. Must be admin, editor, or viewer' });
+    }
+
+    // Find user by email
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found in system' });
+    }
+
+    // Check if user already member
+    const existingMembership = await OrganizationMember.findOne({
+      userId: user._id,
+      organizationId
+    });
+
+    if (existingMembership) {
+      return res.status(400).json({ error: 'User is already a member of this organization' });
+    }
+
+    // Create membership
+    const membership = new OrganizationMember({
+      userId: user._id,
+      organizationId,
+      role
+    });
+
+    await membership.save();
+
+    res.status(201).json({
+      message: 'User added to organization successfully',
+      member: {
+        _id: membership._id,
+        userId: {
+          _id: user._id,
+          username: user.username,
+          email: user.email,
+          isActive: user.isActive,
+          createdAt: user.createdAt
+        },
+        role: membership.role,
+        joinedAt: membership.joinedAt
+      }
+    });
+  } catch (error) {
+    console.error('Add member to current org error:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+/**
+ * Remove member from current organization (admin only)
+ */
+exports.removeMemberFromCurrent = async (req, res) => {
+  try {
+    const organizationId = req.organizationId;
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    const membership = await OrganizationMember.findOne({
+      userId,
+      organizationId
+    });
+
+    if (!membership) {
+      return res.status(404).json({ error: 'User is not a member of this organization' });
+    }
+
+    // Prevent removing the last admin
+    if (membership.role === 'admin') {
+      const adminCount = await OrganizationMember.countDocuments({
+        organizationId,
+        role: 'admin'
+      });
+
+      if (adminCount === 1) {
+        return res.status(400).json({ error: 'Cannot remove the last admin from organization' });
+      }
+    }
+
+    await OrganizationMember.deleteOne({
+      _id: membership._id
+    });
+
+    res.json({ message: 'User removed from organization successfully' });
+  } catch (error) {
+    console.error('Remove member from current org error:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+/**
+ * Update member role in current organization (admin only)
+ */
+exports.updateMemberRoleInCurrent = async (req, res) => {
+  try {
+    const organizationId = req.organizationId;
+    const { userId } = req.params;
+    const { role } = req.body;
+
+    if (!userId || !role) {
+      return res.status(400).json({ error: 'User ID and new role are required' });
+    }
+
+    if (!['admin', 'editor', 'viewer'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid role. Must be admin, editor, or viewer' });
+    }
+
+    const membership = await OrganizationMember.findOne({
+      userId,
+      organizationId
+    });
+
+    if (!membership) {
+      return res.status(404).json({ error: 'User is not a member of this organization' });
+    }
+
+    // Prevent downgrading the last admin
+    if (membership.role === 'admin' && role !== 'admin') {
+      const adminCount = await OrganizationMember.countDocuments({
+        organizationId,
+        role: 'admin'
+      });
+
+      if (adminCount === 1) {
+        return res.status(400).json({ error: 'Cannot remove admin role from the last admin' });
+      }
+    }
+
+    membership.role = role;
+    await membership.save();
+
+    res.json({
+      message: 'Member role updated successfully',
+      member: {
+        _id: membership._id,
+        userId,
+        role: membership.role,
+        joinedAt: membership.joinedAt
+      }
+    });
+  } catch (error) {
+    console.error('Update member role in current org error:', error);
+    res.status(500).json({ error: error.message });
+  }
+};

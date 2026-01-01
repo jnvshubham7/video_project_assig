@@ -64,8 +64,19 @@ const organizationMiddleware = async (req, res, next) => {
     const userId = req.userId;
     const organizationId = req.organizationId;
 
-    if (!userId || !organizationId) {
-      return res.status(401).json({ error: 'User not authenticated' });
+    console.log('[ORG MIDDLEWARE] Checking membership:', {
+      userId: userId,
+      organizationId: organizationId,
+      userIdType: typeof userId,
+      orgIdType: typeof organizationId
+    });
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated - missing userId' });
+    }
+
+    if (!organizationId) {
+      return res.status(401).json({ error: 'Organization not specified - missing organizationId in token. Please login again.' });
     }
 
     const membership = await OrganizationMember.findOne({
@@ -73,11 +84,25 @@ const organizationMiddleware = async (req, res, next) => {
       organizationId: organizationId
     });
 
+    console.log('[ORG MIDDLEWARE] Membership lookup result:', membership ? 'FOUND' : 'NOT FOUND');
+
     if (!membership) {
+      // Log for debugging
+      console.error(`[ORG MIDDLEWARE] Membership not found for userId: ${userId}, organizationId: ${organizationId}`);
+      
+      // Check if user has any memberships at all
+      const userMemberships = await OrganizationMember.find({ userId });
+      console.log(`[ORG MIDDLEWARE] User has ${userMemberships.length} total memberships`);
+      userMemberships.forEach(m => {
+        console.log(`[ORG MIDDLEWARE]   - Org: ${m.organizationId}, Role: ${m.role}`);
+      });
+      
       return res.status(403).json({ 
-        error: 'User does not belong to this organization' 
+        error: 'User does not belong to this organization. Please try logging in again or switching organizations.' 
       });
     }
+
+    console.log('[ORG MIDDLEWARE] Membership found. Role:', membership.role);
 
     req.userRole = membership.role;
     req.membership = membership;
@@ -85,7 +110,7 @@ const organizationMiddleware = async (req, res, next) => {
     next();
   } catch (error) {
     console.error('Organization middleware error:', error);
-    res.status(500).json({ error: 'Error checking organization access' });
+    res.status(500).json({ error: 'Error checking organization access: ' + error.message });
   }
 };
 

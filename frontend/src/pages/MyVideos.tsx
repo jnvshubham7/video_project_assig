@@ -114,6 +114,11 @@ export function MyVideos() {
       const errorMsg = err.response?.data?.error || 'Failed to load videos';
       setError(errorMsg);
       addToast(errorMsg, 'error');
+      
+      // If organization membership error, offer to refresh session
+      if (errorMsg.includes('does not belong') || errorMsg.includes('not authenticated')) {
+        addToast('Please refresh the page and login again', 'warning');
+      }
     } finally {
       setLoading(false);
     }

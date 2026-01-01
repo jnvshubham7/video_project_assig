@@ -10,7 +10,7 @@ export interface Organization {
 
 interface OrganizationContextType {
   currentOrganization: Organization | null;
-  organizations: Organization[];
+  organizations: Organization[] | null;
   switchOrganization: (orgId: string) => Promise<void>;
   refreshOrganizations: () => void;
 }
@@ -18,14 +18,31 @@ interface OrganizationContextType {
 const OrganizationContext = createContext<OrganizationContextType | undefined>(undefined);
 
 export function OrganizationProvider({ children }: { children: ReactNode }) {
-  const [currentOrganization, setCurrentOrg] = useState<Organization | null>(getOrganization());
-  const [organizations, setOrgs] = useState<Organization[]>(getOrganizations());
+  const [currentOrganization, setCurrentOrg] = useState<Organization | null>(() => {
+    try {
+      return getOrganization();
+    } catch {
+      return null;
+    }
+  });
+  const [organizations, setOrgs] = useState<Organization[] | null>(() => {
+    try {
+      const stored = getOrganizations();
+      return stored && stored.length > 0 ? stored : null;
+    } catch {
+      return null;
+    }
+  });
 
   // Refresh organizations from storage on mount
   useEffect(() => {
-    const stored = getOrganizations();
-    if (stored && stored.length > 0) {
-      setOrgs(stored);
+    try {
+      const stored = getOrganizations();
+      if (stored && stored.length > 0) {
+        setOrgs(stored);
+      }
+    } catch {
+      setOrgs(null);
     }
   }, []);
 
@@ -43,8 +60,12 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
   };
 
   const refreshOrganizations = () => {
-    const stored = getOrganizations();
-    setOrgs(stored);
+    try {
+      const stored = getOrganizations();
+      setOrgs(stored && stored.length > 0 ? stored : null);
+    } catch {
+      setOrgs(null);
+    }
   };
 
   return (

@@ -10,52 +10,55 @@ import { OrganizationSettings } from './pages/OrganizationSettings';
 import { MemberManagement } from './pages/MemberManagement';
 import { Header } from './components/Header';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { OrganizationProvider } from './context/OrganizationContext';
 import './App.css';
 
 function App() {
   return (
     <Router>
-      <Header />
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route 
-          path="/upload" 
-          element={
-            <ProtectedRoute>
-              <UploadVideo />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/my-videos" 
-          element={
-            <ProtectedRoute>
-              <MyVideos />
-            </ProtectedRoute>
-          } 
-        />
-        <Route path="/videos" element={<AllVideos />} />
-        <Route path="/video/:id" element={<VideoPlayer />} />
-        <Route 
-          path="/organization" 
-          element={
-            <ProtectedRoute>
-              <OrganizationSettings />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/members" 
-          element={
-            <ProtectedRoute>
-              <MemberManagement />
-            </ProtectedRoute>
-          } 
-        />
-        <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
+      <OrganizationProvider>
+        <Header />
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route 
+            path="/upload" 
+            element={
+              <ProtectedRoute>
+                <UploadVideo />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/my-videos" 
+            element={
+              <ProtectedRoute>
+                <MyVideos />
+              </ProtectedRoute>
+            } 
+          />
+          <Route path="/videos" element={<AllVideos />} />
+          <Route path="/video/:id" element={<VideoPlayer />} />
+          <Route 
+            path="/organization" 
+            element={
+              <ProtectedRoute>
+                <OrganizationSettings />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/members" 
+            element={
+              <ProtectedRoute>
+                <MemberManagement />
+              </ProtectedRoute>
+            } 
+          />
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
+      </OrganizationProvider>
     </Router>
   );
 }
