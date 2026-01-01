@@ -17,6 +17,18 @@ interface Video {
     score: number;
     result: string;
     rules: string[];
+    summary?: string;
+    detectedIssues?: Array<{
+      category: string;
+      score: number;
+      keywords: string[];
+    }>;
+    categoryBreakdown?: {
+      [key: string]: {
+        score: number;
+        keywords: string[];
+      };
+    };
   };
   userId?: { username: string };
 }
@@ -251,10 +263,35 @@ export function MyVideos() {
                     <p className="description">{video.description || 'No description'}</p>
                     {video.sensitivityAnalysis && (
                       <div className="sensitivity-info">
+                        {video.sensitivityAnalysis.summary && (
+                          <p className="summary"><strong>Summary:</strong> {video.sensitivityAnalysis.summary}</p>
+                        )}
                         <p><strong>Safety Score:</strong> {video.sensitivityAnalysis.score}/100</p>
+                        
+                        {video.sensitivityAnalysis.categoryBreakdown && Object.keys(video.sensitivityAnalysis.categoryBreakdown).length > 0 && (
+                          <details className="category-breakdown">
+                            <summary>📊 Category Breakdown</summary>
+                            <div className="breakdown-items">
+                              {Object.entries(video.sensitivityAnalysis.categoryBreakdown).map(([category, data]) => (
+                                <div key={category} className="breakdown-item">
+                                  <span className="category-name">{category}:</span>
+                                  <span className="category-score">{(data as any).score}/100</span>
+                                  {(data as any).keywords && (data as any).keywords.length > 0 && (
+                                    <div className="keywords-list">
+                                      {(data as any).keywords.map((kw: string, idx: number) => (
+                                        <span key={idx} className="keyword-tag">{kw}</span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </details>
+                        )}
+
                         {video.sensitivityAnalysis.rules && video.sensitivityAnalysis.rules.length > 0 && (
                           <details className="analysis-rules">
-                            <summary>Analysis Details</summary>
+                            <summary>🔍 Detection Rules Applied</summary>
                             <ul>
                               {video.sensitivityAnalysis.rules.map((rule, idx) => (
                                 <li key={idx}>{rule}</li>

@@ -88,6 +88,25 @@ const videoSchema = new mongoose.Schema({
       default: 'safe'
     },
     rules: [String],
+    summary: {
+      type: String,
+      default: ''
+    },
+    detectedIssues: [
+      {
+        category: String,
+        score: Number,
+        keywords: [String]
+      }
+    ],
+    categoryBreakdown: {
+      type: Map,
+      of: {
+        score: Number,
+        keywords: [String]
+      },
+      default: new Map()
+    },
     analyzedAt: Date
   },
   processingErrors: [
