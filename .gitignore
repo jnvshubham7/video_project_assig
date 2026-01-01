@@ -25,9 +25,9 @@ uploads/
 .DS_Store
 Thumbs.db
 
-*.md
-*.txt
-*.pdf
+# *.md
+# *.txt
+# *.pdf
 
 # Logs
 logs/
