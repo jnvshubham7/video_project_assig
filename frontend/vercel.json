@@ -1,0 +1,12 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "crons": [],
+  "cleanUrls": true,
+  "git": {
+    "deploymentEnabled": {
+      "main": true
+    }
+  }
+}
