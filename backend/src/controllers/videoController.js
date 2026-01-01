@@ -120,10 +120,10 @@ exports.getVideoById = async (req, res) => {
     }
 
     // Check access control
-    const isOwner = video.userId._id.toString() === req.userId;
-    const isOrganizationMember = video.organizationId._id.toString() === req.organizationId.toString();
+    const isOwner = req.userId && video.userId._id.toString() === req.userId;
+    const isOrganizationMember = req.organizationId && video.organizationId._id.toString() === req.organizationId.toString();
     const isPublic = video.isPublic;
-    const hasExplicitAccess = video.allowedUsers.includes(req.userId);
+    const hasExplicitAccess = req.userId && video.allowedUsers.includes(req.userId);
 
     // Allow access if: owner, organization member, public, or has explicit access
     if (!isOwner && !isOrganizationMember && !isPublic && !hasExplicitAccess) {

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { organizationAPI, OrganizationMember } from '../services/organizationService';
+import { organizationAPI } from '../services/organizationService';
+import type { OrganizationMember } from '../services/organizationService';
 import { getAuthToken } from '../services/authService';
 import '../styles/Auth.css';
 

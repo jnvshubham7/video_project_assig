@@ -10,8 +10,8 @@ interface Video {
   description: string;
   filepath: string;
   views: number;
-  createdAt: string;
-  userId?: { username: string };
+  createdAt?: string;
+  userId?: { username: string } | string;
 }
 
 export function VideoPlayer() {
@@ -86,11 +86,11 @@ export function VideoPlayer() {
         <h1>{video.title}</h1>
         <div className="video-meta">
           <span>👁️ {video.views} views</span>
-          <span>📅 {new Date(video.createdAt).toLocaleDateString()}</span>
+          <span>📅 {video.createdAt ? new Date(video.createdAt).toLocaleDateString() : 'Unknown date'}</span>
         </div>
 
         <div className="uploader-info">
-          <h3>Uploaded by: {video.userId?.username || 'Unknown'}</h3>
+          <h3>Uploaded by: {typeof video.userId === 'object' ? video.userId?.username : video.userId || 'Unknown'}</h3>
         </div>
 
         <div className="video-description">
