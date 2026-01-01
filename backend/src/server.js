@@ -10,22 +10,48 @@ dotenv.config();
 
 const app = express();
 const httpServer = createServer(app);
+
+// CORS configuration: accept FRONTEND_URL from env, plus hardcoded list of known URLs
+const corsOptions = {
+  origin: function(origin, callback) {
+    const frontendUrl = process.env.FRONTEND_URL;
+    
+    // List of allowed origins (for dev + known production URLs)
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'https://video-filter-iota.vercel.app',
+      'https://video-filter-i54p67agb-shubham-kumar-bhoktas-projects.vercel.app'
+    ];
+    
+    // Add FRONTEND_URL if set
+    if (frontendUrl && !allowedOrigins.includes(frontendUrl)) {
+      allowedOrigins.push(frontendUrl);
+    }
+    
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn(`[CORS] Blocked request from origin: ${origin}`);
+      console.log(`[CORS] Allowed origins: ${allowedOrigins.join(', ')}`);
+      callback(new Error('CORS not allowed'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+
 const io = new Server(httpServer, {
-  cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-    methods: ['GET', 'POST'],
-    credentials: true
-  }
+  cors: corsOptions
 });
 
 // Make io accessible to routes
 app.set('io', io);
 
 // Middleware
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true
-}));
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
