@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAuthToken } from '../services/authService';
 import { videoAPI } from '../services/videoService';
+import socketService from '../services/socketService';
 import { ProgressBar } from '../components/ProgressBar';
 import '../styles/Upload.css';
 
@@ -18,6 +19,10 @@ export function UploadVideo() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fileName, setFileName] = useState('');
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [processingProgress, setProcessingProgress] = useState(0);
+  const [processingStep, setProcessingStep] = useState('');
+  const [uploadedVideoId, setUploadedVideoId] = useState<string | null>(null);
+  const [processingStatus, setProcessingStatus] = useState<'uploading' | 'processing' | 'complete' | 'failed' | null>(null);
 
   useEffect(() => {
     // Check user role from localStorage or JWT
@@ -35,7 +40,48 @@ export function UploadVideo() {
       console.error('Failed to decode token');
     }
     setLoading(false);
-  }, [navigate]);
+
+    // Set up Socket.io listeners
+    const handleProcessingStart = (data: any) => {
+      if (data.videoId === uploadedVideoId) {
+        setProcessingStatus('processing');
+        setProcessingProgress(10);
+      }
+    };
+
+    const handleProgressUpdate = (data: any) => {
+      if (data.videoId === uploadedVideoId) {
+        setProcessingProgress(data.progress);
+        setProcessingStep(data.step || '');
+      }
+    };
+
+    const handleProcessingComplete = (data: any) => {
+      if (data.videoId === uploadedVideoId) {
+        setProcessingStatus('complete');
+        setProcessingProgress(100);
+      }
+    };
+
+    const handleProcessingFailed = (data: any) => {
+      if (data.videoId === uploadedVideoId) {
+        setProcessingStatus('failed');
+        setError(data.error);
+      }
+    };
+
+    socketService.on('video-processing-start', handleProcessingStart);
+    socketService.on('video-progress-update', handleProgressUpdate);
+    socketService.on('video-processing-complete', handleProcessingComplete);
+    socketService.on('video-processing-failed', handleProcessingFailed);
+
+    return () => {
+      socketService.off('video-processing-start', handleProcessingStart);
+      socketService.off('video-progress-update', handleProgressUpdate);
+      socketService.off('video-processing-complete', handleProcessingComplete);
+      socketService.off('video-processing-failed', handleProcessingFailed);
+    };
+  }, [navigate, uploadedVideoId]);
 
   if (loading) {
     return <div className="upload-container"><div className="upload-card"><p>Loading...</p></div></div>;
@@ -119,6 +165,7 @@ export function UploadVideo() {
 
     setIsSubmitting(true);
     setUploadProgress(0);
+    setProcessingStatus('uploading');
 
     try {
       const uploadFormData = new FormData();
@@ -128,15 +175,24 @@ export function UploadVideo() {
         uploadFormData.append('video', formData.video);
       }
 
-      await videoAPI.uploadVideo(uploadFormData, (progress) => {
+      const response = await videoAPI.uploadVideo(uploadFormData, (progress) => {
         setUploadProgress(progress);
       });
+
+      // Capture the video ID for tracking processing
+      setUploadedVideoId(response.data.video._id);
       
-      navigate('/my-videos');
+      // Show processing status for 5 seconds before redirecting
+      setTimeout(() => {
+        if (processingStatus !== 'failed') {
+          navigate('/my-videos');
+        }
+      }, 5000);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: string } } };
       const errorMessage = error.response?.data?.error || 'Upload failed. Please try again.';
       setError(errorMessage);
+      setProcessingStatus('failed');
       console.error('Upload error:', err);
     } finally {
       setIsSubmitting(false);
@@ -202,7 +258,7 @@ export function UploadVideo() {
             </div>
           </div>
 
-          {isSubmitting && uploadProgress > 0 && (
+          {isSubmitting && uploadProgress > 0 && processingStatus === 'uploading' && (
             <div className="progress-section">
               <ProgressBar 
                 progress={uploadProgress} 
@@ -212,7 +268,26 @@ export function UploadVideo() {
             </div>
           )}
 
-          <button type="submit" disabled={isSubmitting || !formData.video}>
+          {processingStatus === 'processing' && (
+            <div className="progress-section">
+              <h4>Processing Video...</h4>
+              <ProgressBar 
+                progress={processingProgress} 
+                label={processingStep || 'Processing'} 
+                showPercentage={true}
+              />
+            </div>
+          )}
+
+          {processingStatus === 'complete' && (
+            <div className="success-section">
+              <div className="success-icon">✅</div>
+              <h4>Video Processing Complete!</h4>
+              <p>Redirecting to your videos...</p>
+            </div>
+          )}
+
+          <button type="submit" disabled={isSubmitting || !formData.video || processingStatus === 'processing' || processingStatus === 'complete'}>
             {isSubmitting ? `Uploading... ${Math.round(uploadProgress)}%` : 'Upload Video'}
           </button>
         </form>

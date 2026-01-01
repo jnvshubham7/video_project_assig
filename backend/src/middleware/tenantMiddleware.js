@@ -35,28 +35,32 @@ const rolePermissionsMap = {
  */
 const tenantMiddleware = async (req, res, next) => {
   try {
-    const { organizationId } = req.body || req.query || {};
+    // Use organizationId from JWT (set by authMiddleware)
+    if (!req.organizationId) {
+      return res.status(401).json({ error: 'Organization ID not found in token' });
+    }
     
-    // Get user's organization
-    const user = await User.findById(req.userId).populate('organizationId');
+    // Get user and verify they belong to this organization
+    const user = await User.findById(req.userId);
     
-    if (!user || !user.organizationId) {
-      return res.status(401).json({ error: 'User not associated with any organization' });
+    if (!user) {
+      return res.status(401).json({ error: 'User not found' });
     }
 
-    // If organizationId is provided in request, verify it matches user's organization
-    if (organizationId && organizationId !== user.organizationId._id.toString()) {
-      return res.status(403).json({ error: 'Access denied to this organization' });
+    if (user.organizationId.toString() !== req.organizationId.toString()) {
+      return res.status(403).json({ error: 'User does not belong to this organization' });
     }
 
     // Attach organization info to request
-    req.organization = user.organizationId;
-    req.organizationId = user.organizationId._id;
     req.userRole = user.role;
-    req.userPermissions = rolePermissionsMap[user.role] || user.permissions;
+    // Use role-based permissions map
+    req.userPermissions = rolePermissionsMap[user.role];
+    
+    console.log(`[tenantMiddleware] User: ${user.username}, Role: ${user.role}, Permissions:`, req.userPermissions);
 
     next();
   } catch (error) {
+    console.error(`[tenantMiddleware] Error:`, error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -67,6 +71,7 @@ const tenantMiddleware = async (req, res, next) => {
  */
 const checkPermission = (permission) => {
   return (req, res, next) => {
+    console.log(`[checkPermission] Checking ${permission}. Permissions:`, req.userPermissions);
     if (!req.userPermissions || !req.userPermissions[permission]) {
       return res.status(403).json({ error: `Permission denied: ${permission}` });
     }
@@ -108,10 +113,6 @@ const organizationAccess = async (req, res, next) => {
     
     if (!organization) {
       return res.status(404).json({ error: 'Organization not found' });
-    }
-
-    if (organization.status !== 'active') {
-      return res.status(403).json({ error: 'Organization is not active' });
     }
 
     req.organization = organization;

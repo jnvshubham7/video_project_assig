@@ -328,6 +328,14 @@
   overflow: hidden;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
   margin-bottom: 30px;
+  position: relative;
+}
+
+.player-video {
+  width: 100%;
+  max-height: 600px;
+  background-color: #000;
+  display: block;
 }
 
 .player-wrapper video {
@@ -630,5 +638,281 @@
   .pagination {
     flex-direction: column;
   }
+}
+
+/* Status Badge Styles */
+.status-badge {
+  margin: 8px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge-safe {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.badge-flagged {
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeaa7;
+}
+
+.badge-failed {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.badge-processing {
+  background: #e2e3e5;
+  color: #383d41;
+  border: 1px solid #d6d8db;
+  animation: pulse 1.5s infinite;
+}
+
+.badge-uploaded {
+  background: #d1ecf1;
+  color: #0c5460;
+  border: 1px solid #bee5eb;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+/* Sensitivity Analysis Styles */
+.sensitivity-info {
+  background: #f8f9fa;
+  border-left: 4px solid #667eea;
+  padding: 10px 12px;
+  border-radius: 4px;
+  margin: 10px 0;
+  font-size: 13px;
+}
+
+.sensitivity-info p {
+  margin: 6px 0;
+  color: #333;
+}
+
+.analysis-rules {
+  margin-top: 8px;
+  cursor: pointer;
+}
+
+.analysis-rules summary {
+  color: #667eea;
+  font-weight: 600;
+  padding: 4px 0;
+  outline: none;
+}
+
+.analysis-rules summary:hover {
+  text-decoration: underline;
+}
+
+.analysis-rules ul {
+  margin: 8px 0 0 20px;
+  padding: 0;
+  list-style: disc;
+}
+
+.analysis-rules li {
+  margin: 4px 0;
+  color: #666;
+  font-size: 12px;
+}
+
+/* Restricted Content Display */
+.restricted-content,
+.processing-content,
+.failed-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  color: white;
+  font-weight: 600;
+}
+
+.restricted-content {
+  background: linear-gradient(135deg, #ffa500 0%, #ff6347 100%);
+}
+
+.processing-content {
+  background: linear-gradient(135deg, #87ceeb 0%, #4682b4 100%);
+}
+
+.failed-content {
+  background: linear-gradient(135deg, #ff6347 0%, #dc143c 100%);
+}
+
+.restricted-icon,
+.processing-icon,
+.failed-icon {
+  font-size: 72px;
+  margin-bottom: 20px;
+  animation: iconFloat 3s ease-in-out infinite;
+}
+
+@keyframes iconFloat {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.restricted-content h2,
+.processing-content h2,
+.failed-content h2 {
+  font-size: 28px;
+  margin-bottom: 15px;
+  color: white;
+}
+
+.restricted-content p,
+.processing-content p,
+.failed-content p {
+  font-size: 16px;
+  text-align: center;
+  margin-bottom: 10px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.safety-score {
+  font-size: 18px;
+  margin-top: 15px;
+  padding: 10px 20px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+}
+
+.safe-indicator {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: #4caf50;
+  color: white;
+  padding: 8px 15px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Status Display in Player */
+.status-display {
+  margin: 15px 0;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 14px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.status-safe {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.status-flagged {
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeaa7;
+}
+
+.status-processing {
+  background: #e2e3e5;
+  color: #383d41;
+  border: 1px solid #d6d8db;
+  animation: pulse 1.5s infinite;
+}
+
+.status-failed {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.status-uploaded {
+  background: #d1ecf1;
+  color: #0c5460;
+  border: 1px solid #bee5eb;
+}
+
+/* Sensitivity Details in Player */
+.sensitivity-details {
+  background: #f8f9fa;
+  border-left: 4px solid #667eea;
+  padding: 15px;
+  border-radius: 6px;
+  margin-top: 20px;
+}
+
+.sensitivity-details h3 {
+  margin-top: 0;
+  color: #333;
+  font-size: 16px;
+}
+
+.sensitivity-details p {
+  margin: 8px 0;
+  color: #555;
+  font-size: 14px;
+}
+
+.analysis-details {
+  margin-top: 10px;
+  cursor: pointer;
+}
+
+.analysis-details summary {
+  color: #667eea;
+  font-weight: 600;
+  padding: 6px 0;
+  outline: none;
+}
+
+.analysis-details summary:hover {
+  text-decoration: underline;
+}
+
+.analysis-details ul {
+  margin: 10px 0 0 20px;
+  padding: 0;
+  list-style: disc;
+}
+
+.analysis-details li {
+  margin: 6px 0;
+  color: #666;
+  font-size: 13px;
 }
 

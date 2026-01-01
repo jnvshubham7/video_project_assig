@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { videoAPI } from '../services/videoService';
 import { useToast, ToastContainer } from '../components/Toast';
+import socketService from '../services/socketService';
 import '../styles/Videos.css';
 
 interface Video {
@@ -10,6 +11,13 @@ interface Video {
   filepath: string;
   views: number;
   createdAt: string;
+  status: 'uploaded' | 'processing' | 'safe' | 'flagged' | 'failed';
+  processingProgress: number;
+  sensitivityAnalysis?: {
+    score: number;
+    result: string;
+    rules: string[];
+  };
   userId?: { username: string };
 }
 
@@ -25,6 +33,48 @@ export function MyVideos() {
 
   useEffect(() => {
     fetchVideos();
+    
+    // Define Socket.io event handlers
+    const handleProcessingStart = (data: any) => {
+      setVideos(videos.map(v => v._id === data.videoId ? { ...v, status: 'processing', processingProgress: 0 } : v));
+    };
+
+    const handleProgressUpdate = (data: any) => {
+      setVideos(videos.map(v => v._id === data.videoId ? { ...v, processingProgress: data.progress } : v));
+    };
+
+    const handleProcessingComplete = (data: any) => {
+      setVideos(videos.map(v => {
+        if (v._id === data.videoId) {
+          return {
+            ...v,
+            status: data.status,
+            processingProgress: 100,
+            sensitivityAnalysis: data.analysis
+          };
+        }
+        return v;
+      }));
+      addToast(`Video processing complete: ${data.status === 'safe' ? '✅ Safe' : '⚠️ Flagged'}`, data.status === 'safe' ? 'success' : 'warning');
+    };
+
+    const handleProcessingFailed = (data: any) => {
+      setVideos(videos.map(v => v._id === data.videoId ? { ...v, status: 'failed', processingProgress: 0 } : v));
+      addToast(`Video processing failed: ${data.error}`, 'error');
+    };
+
+    // Listen for real-time video status updates
+    socketService.on('video-processing-start', handleProcessingStart);
+    socketService.on('video-progress-update', handleProgressUpdate);
+    socketService.on('video-processing-complete', handleProcessingComplete);
+    socketService.on('video-processing-failed', handleProcessingFailed);
+
+    return () => {
+      socketService.off('video-processing-start', handleProcessingStart);
+      socketService.off('video-progress-update', handleProgressUpdate);
+      socketService.off('video-processing-complete', handleProcessingComplete);
+      socketService.off('video-processing-failed', handleProcessingFailed);
+    };
   }, []);
 
   const fetchVideos = async () => {
@@ -136,7 +186,7 @@ export function MyVideos() {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="search-input"
           />
-          <select value={sortBy} onChange={(e) => setSortBy(e.target.value as any)} className="sort-select">
+          <select value={sortBy} onChange={(e) => setSortBy(e.target.value as any)} className="sort-select" title="Sort videos by">
             <option value="date">Sort by Date (Newest)</option>
             <option value="views">Sort by Views (Most)</option>
             <option value="title">Sort by Title (A-Z)</option>
@@ -191,7 +241,29 @@ export function MyVideos() {
                 ) : (
                   <>
                     <h3>{video.title}</h3>
+                    <div className="status-badge">
+                      {video.status === 'processing' && <span className="badge badge-processing">⏳ Processing ({video.processingProgress}%)</span>}
+                      {video.status === 'safe' && <span className="badge badge-safe">✅ Safe</span>}
+                      {video.status === 'flagged' && <span className="badge badge-flagged">⚠️ Flagged</span>}
+                      {video.status === 'failed' && <span className="badge badge-failed">❌ Failed</span>}
+                      {video.status === 'uploaded' && <span className="badge badge-uploaded">📤 Uploaded</span>}
+                    </div>
                     <p className="description">{video.description || 'No description'}</p>
+                    {video.sensitivityAnalysis && (
+                      <div className="sensitivity-info">
+                        <p><strong>Safety Score:</strong> {video.sensitivityAnalysis.score}/100</p>
+                        {video.sensitivityAnalysis.rules && video.sensitivityAnalysis.rules.length > 0 && (
+                          <details className="analysis-rules">
+                            <summary>Analysis Details</summary>
+                            <ul>
+                              {video.sensitivityAnalysis.rules.map((rule, idx) => (
+                                <li key={idx}>{rule}</li>
+                              ))}
+                            </ul>
+                          </details>
+                        )}
+                      </div>
+                    )}
                     <div className="video-stats">
                       <span>👁️ {video.views} views</span>
                       <span>📅 {new Date(video.createdAt).toLocaleDateString()}</span>
