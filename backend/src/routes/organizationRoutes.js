@@ -103,7 +103,15 @@ router.post('/invite', authMiddleware, tenantMiddleware, adminOnly, async (req, 
     }
 
     // Add user to organization with role-based permissions
-    user.organizationId = req.organizationId;
+    // Note: Only update organizationId if user doesn't have a primary org yet
+    const isFirstOrg = !user.organizationId || user.organizationId.toString() === '';
+    
+    if (isFirstOrg) {
+      user.organizationId = req.organizationId;
+    }
+    
+    // Always update role and permissions (they apply to this specific org context)
+    // Note: This is a limitation of the current design - ideally, roles would be per-org
     user.role = finalRole;
     user.permissions = rolePermissionsMap[finalRole];
     await user.save();
@@ -217,7 +225,7 @@ router.get('/stats', authMiddleware, tenantMiddleware, async (req, res) => {
     const memberCount = organization.members.length;
     const videoCount = await Video.countDocuments({ organizationId: req.organizationId });
     const totalViews = await Video.aggregate([
-      { $match: { organizationId: require('mongoose').Types.ObjectId(req.organizationId) } },
+      { $match: { organizationId: new (require('mongoose')).Types.ObjectId(req.organizationId) } },
       { $group: { _id: null, totalViews: { $sum: '$views' } } }
     ]);
 

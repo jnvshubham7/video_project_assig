@@ -43,7 +43,7 @@ exports.uploadVideo = async (req, res) => {
       userId: req.userId,
       organizationId: req.organizationId,
       size: req.file.size,
-      isPublic: isPublic !== false,
+      isPublic: isPublic === true ? true : false,
       status: 'uploaded' // Initial status
     });
 
@@ -150,6 +150,7 @@ exports.getAllPublicVideos = async (req, res) => {
 };
 
 // Get video by ID with proper access control
+// Requires authentication - user must be in same organization
 exports.getVideoById = async (req, res) => {
   try {
     const video = await Video.findById(req.params.id)
@@ -160,21 +161,19 @@ exports.getVideoById = async (req, res) => {
       return res.status(404).json({ error: 'Video not found' });
     }
 
-    // Check access control
-    const isOwner = req.userId && video.userId._id.toString() === req.userId;
-    const isOrganizationMember = req.organizationId && video.organizationId._id.toString() === req.organizationId.toString();
-    const isPublic = video.isPublic;
-    const hasExplicitAccess = req.userId && video.allowedUsers.includes(req.userId);
+    // Verify video belongs to user's organization
+    if (video.organizationId._id.toString() !== req.organizationId.toString()) {
+      return res.status(403).json({ error: 'Access denied to this video' });
+    }
+
+    // Role-based access check
+    const isOwner = video.userId._id.toString() === req.userId;
     const isAdmin = req.userRole === 'admin';
     const isEditor = req.userRole === 'editor';
+    const isViewer = req.userRole === 'viewer';
 
-    // Access denied if:
-    // - Not owner AND
-    // - Not admin AND
-    // - (Not editor OR not in same org) AND
-    // - (Not public AND not explicitly shared) AND
-    // - Not in same org
-    if (!isOwner && !isAdmin && !(isEditor && isOrganizationMember) && !isPublic && !hasExplicitAccess) {
+    // Viewers can only see public videos or videos explicitly shared with them
+    if (isViewer && !video.isPublic && !video.allowedUsers.includes(req.userId)) {
       return res.status(403).json({ error: 'Access denied to this video' });
     }
 
@@ -281,9 +280,11 @@ exports.shareVideo = async (req, res) => {
       return res.status(404).json({ error: 'Video not found' });
     }
 
-    // Verify ownership
+    // Verify ownership or admin role
     if (video.userId.toString() !== req.userId) {
-      return res.status(403).json({ error: 'Not authorized to share this video' });
+      if (!(req.userRole === 'admin' && video.organizationId.toString() === req.organizationId.toString())) {
+        return res.status(403).json({ error: 'Not authorized to share this video' });
+      }
     }
 
     // Verify all users are in the same organization
@@ -339,55 +340,57 @@ exports.getFilteredVideos = async (req, res) => {
       limit = 20
     } = req.query;
 
-    const query = { organizationId: req.organizationId };
-
-    // Role-based filtering
-    if (req.userRole === 'viewer') {
-      query.$or = [
-        { isPublic: true },
-        { allowedUsers: req.userId }
-      ];
-    } else if (req.userRole === 'editor') {
-      // Editors can see org videos
-      // query already has organizationId
-    }
-    // Admins can see all videos in org
-
+    // Build filter objects for common filters
+    const commonFilters = {};
+    
     // Status filter
     if (status && ['uploaded', 'processing', 'safe', 'flagged', 'failed'].includes(status)) {
-      query.status = status;
+      commonFilters.status = status;
     }
 
     // Sensitivity filter
     if (sensitivity && ['safe', 'flagged'].includes(sensitivity)) {
-      query['sensitivityAnalysis.result'] = sensitivity;
+      commonFilters['sensitivityAnalysis.result'] = sensitivity;
     }
 
     // Date range filter
     if (dateFrom || dateTo) {
-      query.createdAt = {};
+      commonFilters.createdAt = {};
       if (dateFrom) {
-        query.createdAt.$gte = new Date(dateFrom);
+        commonFilters.createdAt.$gte = new Date(dateFrom);
       }
       if (dateTo) {
-        query.createdAt.$lte = new Date(dateTo);
+        commonFilters.createdAt.$lte = new Date(dateTo);
       }
     }
 
     // File size filter
     if (minSize || maxSize) {
-      query.size = {};
+      commonFilters.size = {};
       if (minSize) {
-        query.size.$gte = parseInt(minSize);
+        commonFilters.size.$gte = parseInt(minSize);
       }
       if (maxSize) {
-        query.size.$lte = parseInt(maxSize);
+        commonFilters.size.$lte = parseInt(maxSize);
       }
     }
 
     // Category filter
     if (category) {
-      query.category = category;
+      commonFilters.category = category;
+    }
+
+    let query = {};
+    
+    // Role-based filtering
+    if (req.userRole === 'viewer') {
+      query.$or = [
+        { organizationId: req.organizationId, isPublic: true, ...commonFilters },
+        { organizationId: req.organizationId, allowedUsers: req.userId, ...commonFilters }
+      ];
+    } else {
+      // Editors and Admins see all org videos
+      query = { organizationId: req.organizationId, ...commonFilters };
     }
 
     // Pagination
@@ -428,7 +431,7 @@ exports.getVideoStatistics = async (req, res) => {
 
     const matchStage = {
       $match: {
-        organizationId: mongoose.Types.ObjectId(req.organizationId)
+        organizationId: new mongoose.Types.ObjectId(req.organizationId)
       }
     };
 

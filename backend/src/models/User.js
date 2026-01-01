@@ -65,8 +65,8 @@ const userSchema = new mongoose.Schema({
 // Create compound unique index for username within organization
 userSchema.index({ username: 1, organizationId: 1 }, { unique: true });
 
-// Create compound unique index for email within organization
-userSchema.index({ email: 1, organizationId: 1 }, { unique: true });
+// Email must be globally unique (single user per email across all organizations)
+userSchema.index({ email: 1 }, { unique: true });
 
 // Hash password before saving
 userSchema.pre('save', async function(next) {

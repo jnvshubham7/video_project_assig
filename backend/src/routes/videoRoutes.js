@@ -74,9 +74,13 @@ router.get('/:id/processing-status',
   videoController.getProcessingStatus
 );
 
-// Public routes (accessible without authentication)
-router.get('/public/all', videoController.getAllPublicVideos);
-router.get('/:id', videoController.getVideoById);
+// Get video by ID (organization members only)
+router.get('/:id',
+  authMiddleware,
+  tenantMiddleware,
+  organizationAccess,
+  videoController.getVideoById
+);
 
 module.exports = router;
 
