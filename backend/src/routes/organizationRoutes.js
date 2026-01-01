@@ -27,6 +27,14 @@ router.get('/',
   organizationController.getCurrentOrganization
 );
 
+// Update current organization (admin only)
+router.put('/',
+  authMiddleware,
+  organizationMiddleware,
+  rbacMiddleware('admin'),
+  organizationController.updateCurrentOrganization
+);
+
 // Get current organization's members
 router.get('/members',
   authMiddleware,
@@ -72,28 +80,28 @@ router.get('/my-organizations',
   organizationController.getUserOrganizations
 );
 
-// Get organization details with members
-router.get('/:organizationId',
+// Get organization details with members (only match valid MongoDB ObjectIds)
+router.get('/:organizationId([a-f0-9]{24})',
   authMiddleware,
   organizationController.getOrganization
 );
 
 // Add member to organization (admin only)
-router.post('/:organizationId/members',
+router.post('/:organizationId([a-f0-9]{24})/members',
   authMiddleware,
   rbacMiddleware('admin'),
   organizationController.addMember
 );
 
 // Update member role (admin only)
-router.put('/:organizationId/members/:memberId',
+router.put('/:organizationId([a-f0-9]{24})/members/:memberId([a-f0-9]{24})',
   authMiddleware,
   rbacMiddleware('admin'),
   organizationController.updateMemberRole
 );
 
 // Remove member from organization (admin only)
-router.delete('/:organizationId/members/:memberId',
+router.delete('/:organizationId([a-f0-9]{24})/members/:memberId([a-f0-9]{24})',
   authMiddleware,
   rbacMiddleware('admin'),
   organizationController.removeMember

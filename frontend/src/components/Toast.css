@@ -25,11 +25,17 @@
 
 .toast-success {
   border-left-color: #10b981;
-  background: #ecfdf5;
+  background: #dcfce7;
 }
 
 .toast-success .toast-icon {
-  color: #10b981;
+  color: #16a34a;
+  font-weight: 700;
+}
+
+.toast-success .toast-message {
+  color: #15803d;
+  font-weight: 500;
 }
 
 .toast-error {

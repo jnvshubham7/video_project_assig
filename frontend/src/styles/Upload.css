@@ -167,11 +167,12 @@
 }
 
 .success-section {
-  background: #d4edda;
+  background: linear-gradient(135deg, #dcfce7 0%, #d1fae5 100%);
   padding: 30px;
   border-radius: 8px;
-  border: 2px solid #c3e6cb;
+  border: 2px solid #10b981;
   text-align: center;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
 }
 
 .success-icon {
@@ -195,15 +196,17 @@
 }
 
 .success-section h4 {
-  color: #155724;
+  color: #15803d;
   margin: 10px 0 5px 0;
   font-size: 18px;
+  font-weight: 600;
 }
 
 .success-section p {
-  color: #155724;
+  color: #16a34a;
   margin: 5px 0 0 0;
   font-size: 14px;
+  font-weight: 500;
 }
 
 @media (max-width: 600px) {
