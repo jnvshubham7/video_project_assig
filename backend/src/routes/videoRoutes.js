@@ -52,6 +52,28 @@ router.post('/:id/share',
   videoController.shareVideo
 );
 
+// Filtering and statistics routes
+router.get('/filter/advanced',
+  authMiddleware,
+  tenantMiddleware,
+  organizationAccess,
+  videoController.getFilteredVideos
+);
+
+router.get('/stats/overview',
+  authMiddleware,
+  tenantMiddleware,
+  organizationAccess,
+  videoController.getVideoStatistics
+);
+
+router.get('/:id/processing-status',
+  authMiddleware,
+  tenantMiddleware,
+  organizationAccess,
+  videoController.getProcessingStatus
+);
+
 // Public routes (accessible without authentication)
 router.get('/public/all', videoController.getAllPublicVideos);
 router.get('/:id', videoController.getVideoById);

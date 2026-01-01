@@ -58,6 +58,50 @@ const videoSchema = new mongoose.Schema({
     }
   ],
   tags: [String],
+  category: {
+    type: String,
+    default: 'general',
+    enum: ['general', 'educational', 'entertainment', 'tutorial', 'other']
+  },
+  status: {
+    type: String,
+    enum: ['uploaded', 'processing', 'safe', 'flagged', 'failed'],
+    default: 'uploaded',
+    index: true
+  },
+  processingProgress: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 100
+  },
+  sensitivityAnalysis: {
+    score: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100
+    },
+    result: {
+      type: String,
+      enum: ['safe', 'flagged'],
+      default: 'safe'
+    },
+    rules: [String],
+    analyzedAt: Date
+  },
+  processingErrors: [
+    {
+      step: String,
+      error: String,
+      timestamp: {
+        type: Date,
+        default: Date.now
+      }
+    }
+  ],
+  processingStartedAt: Date,
+  processingCompletedAt: Date,
   createdAt: {
     type: Date,
     default: Date.now,
@@ -72,5 +116,9 @@ const videoSchema = new mongoose.Schema({
 // Create compound index for user and organization for efficient filtering
 videoSchema.index({ userId: 1, organizationId: 1 });
 videoSchema.index({ organizationId: 1, createdAt: -1 });
+videoSchema.index({ status: 1, organizationId: 1 });
+videoSchema.index({ 'sensitivityAnalysis.result': 1, organizationId: 1 });
+videoSchema.index({ createdAt: -1 });
+videoSchema.index({ size: 1 });
 
 module.exports = mongoose.model('Video', videoSchema);

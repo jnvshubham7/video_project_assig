@@ -1,6 +1,8 @@
 const Video = require('../models/Video');
 const User = require('../models/User');
+const mongoose = require('mongoose');
 const cloudinary = require('cloudinary').v2;
+const VideoProcessingService = require('../services/videoProcessingService');
 
 // Configure Cloudinary (in case it's not already configured)
 cloudinary.config({
@@ -12,7 +14,7 @@ cloudinary.config({
 // Upload video with organization isolation
 exports.uploadVideo = async (req, res) => {
   try {
-    const { title, description, isPublic } = req.body;
+    const { title, description, category, isPublic } = req.body;
 
     if (!title) {
       return res.status(400).json({ error: 'Video title is required' });
@@ -34,21 +36,45 @@ exports.uploadVideo = async (req, res) => {
     const video = new Video({
       title,
       description: description || '',
+      category: category || 'general',
       filename: req.file.originalname,
       filepath: cloudinaryUrl,
       cloudinaryPublicId: cloudinaryPublicId,
       userId: req.userId,
       organizationId: req.organizationId,
       size: req.file.size,
-      isPublic: isPublic !== false
+      isPublic: isPublic !== false,
+      status: 'uploaded' // Initial status
     });
 
     await video.save();
     await video.populate('userId', 'username email');
 
+    // Start async processing (non-blocking)
+    // Get Socket.io instance if available
+    const io = req.app.get('io');
+    const ioEmitter = io ? (event, data) => {
+      io.to(`org-${req.organizationId}`).emit(event, data);
+    } : null;
+
+    // Trigger processing without waiting
+    VideoProcessingService.processVideoAsync(video._id, video, ioEmitter).catch(error => {
+      console.error('Background processing error:', error);
+    });
+
     res.status(201).json({
-      message: 'Video uploaded successfully to cloud storage',
-      video
+      message: 'Video uploaded successfully. Processing started.',
+      video: {
+        _id: video._id,
+        title: video.title,
+        description: video.description,
+        category: video.category,
+        status: video.status,
+        processingProgress: video.processingProgress,
+        filepath: video.filepath,
+        size: video.size,
+        createdAt: video.createdAt
+      }
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -282,3 +308,188 @@ exports.shareVideo = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+/**
+ * Get video processing status
+ */
+exports.getProcessingStatus = async (req, res) => {
+  try {
+    const status = await VideoProcessingService.getProcessingStatus(req.params.id);
+    res.json(status);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+/**
+ * Advanced filtering for videos
+ * Supports filters: status, sensitivity, dateRange, minSize, maxSize, category
+ */
+exports.getFilteredVideos = async (req, res) => {
+  try {
+    const {
+      status,
+      sensitivity,
+      dateFrom,
+      dateTo,
+      minSize,
+      maxSize,
+      category,
+      page = 1,
+      limit = 20
+    } = req.query;
+
+    const query = { organizationId: req.organizationId };
+
+    // Role-based filtering
+    if (req.userRole === 'viewer') {
+      query.$or = [
+        { isPublic: true },
+        { allowedUsers: req.userId }
+      ];
+    } else if (req.userRole === 'editor') {
+      // Editors can see org videos
+      // query already has organizationId
+    }
+    // Admins can see all videos in org
+
+    // Status filter
+    if (status && ['uploaded', 'processing', 'safe', 'flagged', 'failed'].includes(status)) {
+      query.status = status;
+    }
+
+    // Sensitivity filter
+    if (sensitivity && ['safe', 'flagged'].includes(sensitivity)) {
+      query['sensitivityAnalysis.result'] = sensitivity;
+    }
+
+    // Date range filter
+    if (dateFrom || dateTo) {
+      query.createdAt = {};
+      if (dateFrom) {
+        query.createdAt.$gte = new Date(dateFrom);
+      }
+      if (dateTo) {
+        query.createdAt.$lte = new Date(dateTo);
+      }
+    }
+
+    // File size filter
+    if (minSize || maxSize) {
+      query.size = {};
+      if (minSize) {
+        query.size.$gte = parseInt(minSize);
+      }
+      if (maxSize) {
+        query.size.$lte = parseInt(maxSize);
+      }
+    }
+
+    // Category filter
+    if (category) {
+      query.category = category;
+    }
+
+    // Pagination
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
+    const skip = (pageNum - 1) * limitNum;
+
+    // Execute query with pagination
+    const [videos, total] = await Promise.all([
+      Video.find(query)
+        .populate('userId', 'username email')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum),
+      Video.countDocuments(query)
+    ]);
+
+    res.json({
+      videos,
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        pages: Math.ceil(total / limitNum)
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+/**
+ * Get video statistics for dashboard
+ */
+exports.getVideoStatistics = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+
+    const matchStage = {
+      $match: {
+        organizationId: mongoose.Types.ObjectId(req.organizationId)
+      }
+    };
+
+    // Add date filter if provided
+    if (startDate || endDate) {
+      matchStage.$match.createdAt = {};
+      if (startDate) {
+        matchStage.$match.createdAt.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        matchStage.$match.createdAt.$lte = new Date(endDate);
+      }
+    }
+
+    const stats = await Video.aggregate([
+      matchStage,
+      {
+        $group: {
+          _id: null,
+          totalVideos: { $sum: 1 },
+          totalSize: { $sum: '$size' },
+          totalViews: { $sum: '$views' },
+          averageSize: { $avg: '$size' }
+        }
+      }
+    ]);
+
+    // Get status breakdown
+    const statusBreakdown = await Video.aggregate([
+      matchStage,
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Get sensitivity breakdown
+    const sensitivityBreakdown = await Video.aggregate([
+      matchStage,
+      {
+        $group: {
+          _id: '$sensitivityAnalysis.result',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    res.json({
+      overall: stats[0] || {
+        totalVideos: 0,
+        totalSize: 0,
+        totalViews: 0,
+        averageSize: 0
+      },
+      byStatus: statusBreakdown,
+      bySensitivity: sensitivityBreakdown
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
