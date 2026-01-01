@@ -20,6 +20,13 @@ exports.uploadVideo = async (req, res) => {
   try {
     const { title, description, category, isPublic } = req.body;
 
+    console.log('[VIDEO-UPLOAD] Starting upload:', {
+      userId: req.userId,
+      organizationId: req.organizationId,
+      userRole: req.userRole,
+      title
+    });
+
     if (!title) {
       return res.status(400).json({ error: 'Video title is required' });
     }
@@ -56,6 +63,11 @@ exports.uploadVideo = async (req, res) => {
     await video.save();
     await video.populate('userId', 'username email');
 
+    console.log('[VIDEO-UPLOAD] Video saved:', {
+      videoId: video._id,
+      organizationId: video.organizationId
+    });
+
     // Start async processing (non-blocking)
     // Get Socket.io instance if available
     const io = req.app.get('io');
@@ -65,6 +77,7 @@ exports.uploadVideo = async (req, res) => {
 
     // Emit video-uploaded event immediately so clients can see the new video
     if (io) {
+      console.log('[VIDEO-UPLOAD] Emitting video-uploaded event to org:', req.organizationId);
       io.to(`org-${req.organizationId}`).emit('video-uploaded', {
         videoId: video._id,
         video: {
@@ -113,16 +126,27 @@ exports.uploadVideo = async (req, res) => {
  */
 exports.getUserVideos = async (req, res) => {
   try {
+    const userId = req.userId;
+    const organizationId = req.organizationId;
+
+    console.log('[VIDEO] Getting user videos:', {
+      userId,
+      organizationId
+    });
+
     // Fetch only videos belonging to user's organization
     const videos = await Video.find({
-      userId: req.userId,
-      organizationId: req.organizationId
+      userId: userId,
+      organizationId: organizationId
     })
     .populate('userId', 'username email')
     .sort({ createdAt: -1 });
 
+    console.log('[VIDEO] User videos found:', videos.length, 'videos');
+
     res.json({ videos });
   } catch (error) {
+    console.error('[VIDEO] Error getting user videos:', error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -135,11 +159,22 @@ exports.getUserVideos = async (req, res) => {
  */
 exports.getOrganizationVideos = async (req, res) => {
   try {
-    let query = { organizationId: req.organizationId };
+    const userId = req.userId;
+    const organizationId = req.organizationId;
+    const userRole = req.userRole;
+
+    console.log('[VIDEO] Getting organization videos:', {
+      userId,
+      organizationId,
+      userRole
+    });
+
+    let query = { organizationId: organizationId };
 
     // Viewers can only see public videos
-    if (req.userRole === 'viewer') {
+    if (userRole === 'viewer') {
       query.isPublic = true;
+      console.log('[VIDEO] Viewer role detected - filtering to public videos only');
     }
     // Editors and Admins can see all org videos
 
@@ -148,11 +183,14 @@ exports.getOrganizationVideos = async (req, res) => {
       .populate('userId', 'username email')
       .sort({ createdAt: -1 });
 
+    console.log('[VIDEO] Organization videos found:', videos.length, 'videos');
+
     res.json({ 
       videos,
       count: videos.length
     });
   } catch (error) {
+    console.error('[VIDEO] Error getting organization videos:', error);
     res.status(500).json({ error: error.message });
   }
 };

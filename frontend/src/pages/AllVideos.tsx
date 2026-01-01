@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { videoAPI } from '../services/videoService';
+import { useOrganization } from '../context/OrganizationContext';
 import '../styles/Videos.css';
 
 interface Video {
@@ -13,6 +14,7 @@ interface Video {
 }
 
 export function AllVideos() {
+  const { currentOrganization, addOrganizationChangeListener } = useOrganization();
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -23,15 +25,34 @@ export function AllVideos() {
 
   useEffect(() => {
     fetchVideos();
+    
+    // Listen for organization changes and refetch videos
+    const unsubscribe = addOrganizationChangeListener(() => {
+      console.log('[ALLVIDEOS] Organization changed, refetching organization videos');
+      setVideos([]); // Clear current videos
+      setCurrentPage(1); // Reset to first page
+      fetchVideos(); // Refetch for new organization
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const fetchVideos = async () => {
     try {
       setLoading(true);
-      const response = await videoAPI.getPublicVideos();
+      // Fetch organization videos instead of public videos
+      const response = await videoAPI.getOrganizationVideos();
       setVideos(response.data.videos);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to load videos');
+      const errorMsg = err.response?.data?.error || 'Failed to load videos';
+      setError(errorMsg);
+      
+      // If organization membership error, show helpful message
+      if (errorMsg.includes('does not belong') || errorMsg.includes('not authenticated')) {
+        setError('Please refresh the page. Organization data is out of sync.');
+      }
     } finally {
       setLoading(false);
     }
@@ -67,7 +88,7 @@ export function AllVideos() {
   return (
     <div className="videos-container">
       <div className="videos-header">
-        <h2>All Videos</h2>
+        <h2>Organization Videos{currentOrganization ? ` - ${currentOrganization.name}` : ''}</h2>
       </div>
 
       {error && <div className="error-message">{error}</div>}

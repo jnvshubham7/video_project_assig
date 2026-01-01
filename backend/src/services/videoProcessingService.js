@@ -5,6 +5,9 @@
 
 const Video = require('../models/Video');
 
+// Flagging threshold: score strictly greater than this marks video as 'flagged'
+const FLAG_THRESHOLD = 30;
+
 class VideoProcessingService {
   /**
    * Comprehensive keyword lists for different content categories
@@ -139,8 +142,8 @@ class VideoProcessingService {
       // Ensure score stays within bounds
       totalScore = Math.min(Math.round(totalScore), 100);
 
-      // Determine final result
-      const result = totalScore > 50 ? 'flagged' : 'safe';
+      // Determine final result (configurable threshold)
+      const result = totalScore > FLAG_THRESHOLD ? 'flagged' : 'safe';
 
       // Create comprehensive summary
       const summary = this._createSummary(
@@ -215,13 +218,16 @@ class VideoProcessingService {
    */
   static async updateProgress(videoId, progress) {
     try {
+      console.log('[PROGRESS-UPDATE] Updating video', videoId, 'to', progress, '%');
       const video = await Video.findByIdAndUpdate(
         videoId,
         { processingProgress: Math.min(progress, 99) },
         { new: true }
       );
+      console.log('[PROGRESS-UPDATE] Updated successfully');
       return video;
     } catch (error) {
+      console.error('[PROGRESS-UPDATE] Error:', error.message);
       throw new Error(`Failed to update progress: ${error.message}`);
     }
   }
@@ -287,10 +293,14 @@ class VideoProcessingService {
    */
   static async processVideoAsync(videoId, video, ioEmitter = null) {
     try {
+      console.log('[PROCESSING] Starting async processing for video:', videoId);
+      
       // Start processing
       await this.startProcessing(videoId);
+      console.log('[PROCESSING] Status set to processing');
 
       if (ioEmitter) {
+        console.log('[PROCESSING] Emitting video-processing-start');
         ioEmitter('video-processing-start', { videoId, progress: 10, step: 'Starting video processing' });
       }
 
@@ -305,21 +315,34 @@ class VideoProcessingService {
       ];
 
       for (const { progress, step, delay } of steps) {
-        await new Promise(resolve => setTimeout(resolve, delay));
-        await this.updateProgress(videoId, progress);
+        try {
+          console.log(`[PROCESSING] Step: ${step} - Waiting ${delay}ms`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          
+          console.log(`[PROCESSING] Updating progress to ${progress}%`);
+          await this.updateProgress(videoId, progress);
 
-        if (ioEmitter) {
-          ioEmitter('video-progress-update', { videoId, progress, step });
+          if (ioEmitter) {
+            console.log(`[PROCESSING] Emitting progress update: ${progress}%`);
+            ioEmitter('video-progress-update', { videoId, progress, step });
+          }
+        } catch (stepError) {
+          console.error(`[PROCESSING] Error in step (${progress}%):`, stepError.message);
+          throw stepError;
         }
       }
 
+      console.log('[PROCESSING] All steps complete, running sensitivity analysis');
       // Run sensitivity analysis
       const analysisResult = await this.analyzeSensitivity(video);
+      console.log('[PROCESSING] Analysis complete, result:', analysisResult.result);
 
       // Complete processing with results
       const processed = await this.completeProcessing(videoId, analysisResult);
+      console.log('[PROCESSING] Processing complete');
 
       if (ioEmitter) {
+        console.log('[PROCESSING] Emitting video-processing-complete');
         ioEmitter('video-processing-complete', {
           videoId,
           progress: 100,
@@ -329,12 +352,18 @@ class VideoProcessingService {
         });
       }
 
+      console.log('[PROCESSING] Async processing finished successfully for:', videoId);
       return processed;
     } catch (error) {
-      console.error('Video Processing Error:', error);
-      await this.failProcessing(videoId, error.message);
+      console.error('[PROCESSING] Video Processing Error:', error.message, error.stack);
+      try {
+        await this.failProcessing(videoId, error.message);
+      } catch (failError) {
+        console.error('[PROCESSING] Error marking video as failed:', failError.message);
+      }
 
       if (ioEmitter) {
+        console.log('[PROCESSING] Emitting video-processing-failed');
         ioEmitter('video-processing-failed', {
           videoId,
           error: error.message

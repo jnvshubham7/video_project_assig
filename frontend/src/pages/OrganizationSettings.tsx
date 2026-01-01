@@ -34,7 +34,9 @@ export function OrganizationSettings() {
         description: response.data.organization.description || '',
       });
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to fetch organization');
+      const errorMsg = err.response?.data?.error || err.message || 'Failed to fetch organization';
+      console.error('[ORG-SETTINGS] Error:', errorMsg);
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }

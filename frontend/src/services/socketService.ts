@@ -7,6 +7,7 @@ class SocketService {
     this.socket = null;
     this.connected = false;
     this.listeners = {};
+    this.currentOrganizationId = null;
   }
 
   /**
@@ -33,7 +34,9 @@ class SocketService {
         
         // Join organization room for real-time updates
         if (organizationId) {
+          this.currentOrganizationId = organizationId;
           this.socket.emit('join-org', organizationId);
+          console.log('[SOCKET] Joined organization room:', organizationId);
         }
       });
 
@@ -103,11 +106,34 @@ class SocketService {
   }
 
   /**
+   * Switch organization room - leave old room and join new one
+   */
+  switchOrganizationRoom(newOrganizationId) {
+    if (!this.socket?.connected) {
+      console.log('[SOCKET] Not connected, cannot switch room');
+      return;
+    }
+
+    // Leave old organization room if exists
+    if (this.currentOrganizationId && this.currentOrganizationId !== newOrganizationId) {
+      console.log('[SOCKET] Leaving old organization room:', this.currentOrganizationId);
+      this.socket.emit('leave-org', this.currentOrganizationId);
+    }
+
+    // Join new organization room
+    this.currentOrganizationId = newOrganizationId;
+    console.log('[SOCKET] Joining new organization room:', newOrganizationId);
+    this.socket.emit('join-org', newOrganizationId);
+  }
+
+  /**
    * Join organization room
    */
   joinOrganization(organizationId) {
     if (this.socket?.connected) {
+      this.currentOrganizationId = organizationId;
       this.socket.emit('join-org', organizationId);
+      console.log('[SOCKET] Joined organization:', organizationId);
     }
   }
 
@@ -117,6 +143,10 @@ class SocketService {
   leaveOrganization(organizationId) {
     if (this.socket?.connected) {
       this.socket.emit('leave-org', organizationId);
+      console.log('[SOCKET] Left organization:', organizationId);
+      if (this.currentOrganizationId === organizationId) {
+        this.currentOrganizationId = null;
+      }
     }
   }
 

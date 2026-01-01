@@ -279,10 +279,15 @@ exports.getCurrentOrganization = async (req, res) => {
   try {
     const organizationId = req.organizationId;
 
+    console.log('[ORG-CONTROLLER] Getting current organization:', organizationId);
+
     const organization = await Organization.findById(organizationId);
     if (!organization) {
-      return res.status(404).json({ error: 'Organization not found' });
+      console.error('[ORG-CONTROLLER] Organization not found in DB:', organizationId);
+      return res.status(404).json({ error: 'Organization not found in database' });
     }
+
+    console.log('[ORG-CONTROLLER] Organization found:', organization.name);
 
     // Get all members of this organization
     const members = await OrganizationMember.find({ organizationId })

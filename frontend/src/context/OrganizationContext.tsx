@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { getOrganization, setOrganization, getOrganizations, setOrganizations, authAPI } from '../services/authService';
+import socketService from '../services/socketService';
 
 export interface Organization {
   id: string;
@@ -13,6 +14,7 @@ interface OrganizationContextType {
   organizations: Organization[] | null;
   switchOrganization: (orgId: string) => Promise<void>;
   refreshOrganizations: () => Promise<void>;
+  addOrganizationChangeListener: (callback: (org: Organization | null) => void) => () => void;
 }
 
 const OrganizationContext = createContext<OrganizationContextType | undefined>(undefined);
@@ -33,6 +35,20 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       return null;
     }
   });
+
+  // Store organization change listeners
+  const [changeListeners, setChangeListeners] = useState<Set<(org: Organization | null) => void>>(new Set());
+
+  // Notify all listeners when organization changes
+  const notifyOrganizationChange = (org: Organization | null) => {
+    changeListeners.forEach(callback => {
+      try {
+        callback(org);
+      } catch (error) {
+        console.error('Error in organization change listener:', error);
+      }
+    });
+  };
 
   // Refresh organizations from storage on mount
   useEffect(() => {
@@ -91,15 +107,43 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       }
       
       // Update current organization
-      setCurrentOrg(newOrg);
-      setOrganization(newOrg);
+      const updatedOrg: Organization = {
+        id: newOrg.id,
+        name: newOrg.name,
+        slug: newOrg.slug,
+        role: newOrg.role
+      };
       
-      // Dispatch event for listeners
+      setCurrentOrg(updatedOrg);
+      setOrganization(updatedOrg);
+      
+      // Switch socket.io organization room
+      if (updatedOrg.id) {
+        socketService.switchOrganizationRoom(updatedOrg.id);
+      }
+      
+      // Notify all listeners of organization change
+      notifyOrganizationChange(updatedOrg);
+      
+      // Dispatch event for other listeners (backward compatibility)
       window.dispatchEvent(new Event('organizationChanged'));
     } catch (error) {
       console.error('Failed to switch organization:', error);
       throw error;
     }
+  };
+
+  const addOrganizationChangeListener = (callback: (org: Organization | null) => void) => {
+    const newListeners = new Set(changeListeners);
+    newListeners.add(callback);
+    setChangeListeners(newListeners);
+    
+    // Return unsubscribe function
+    return () => {
+      const updatedListeners = new Set(changeListeners);
+      updatedListeners.delete(callback);
+      setChangeListeners(updatedListeners);
+    };
   };
 
   const refreshOrganizations = async () => {
@@ -129,7 +173,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <OrganizationContext.Provider value={{ currentOrganization, organizations, switchOrganization, refreshOrganizations }}>
+    <OrganizationContext.Provider value={{ currentOrganization, organizations, switchOrganization, refreshOrganizations, addOrganizationChangeListener }}>
       {children}
     </OrganizationContext.Provider>
   );

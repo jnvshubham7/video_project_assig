@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { videoAPI } from '../services/videoService';
 import { useToast, ToastContainer } from '../components/Toast';
+import { useOrganization } from '../context/OrganizationContext';
 import socketService from '../services/socketService';
 import '../styles/Videos.css';
 
@@ -35,6 +36,7 @@ interface Video {
 
 export function MyVideos() {
   const { toasts, addToast, removeToast } = useToast();
+  const { currentOrganization, addOrganizationChangeListener } = useOrganization();
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -46,6 +48,13 @@ export function MyVideos() {
   useEffect(() => {
     fetchVideos();
     
+    // Listen for organization changes and refetch videos
+    const unsubscribe = addOrganizationChangeListener(() => {
+      console.log('[MYVIDEOS] Organization changed, refetching videos');
+      setVideos([]); // Clear current videos
+      fetchVideos(); // Refetch for new organization
+    });
+
     // Define Socket.io event handlers
     const handleVideoUploaded = (data: any) => {
       // Add newly uploaded video to the top of the list
@@ -61,15 +70,15 @@ export function MyVideos() {
     };
 
     const handleProcessingStart = (data: any) => {
-      setVideos(videos.map(v => v._id === data.videoId ? { ...v, status: 'processing', processingProgress: 0 } : v));
+      setVideos(prevVideos => prevVideos.map(v => v._id === data.videoId ? { ...v, status: 'processing', processingProgress: 0 } : v));
     };
 
     const handleProgressUpdate = (data: any) => {
-      setVideos(videos.map(v => v._id === data.videoId ? { ...v, processingProgress: data.progress } : v));
+      setVideos(prevVideos => prevVideos.map(v => v._id === data.videoId ? { ...v, processingProgress: data.progress } : v));
     };
 
     const handleProcessingComplete = (data: any) => {
-      setVideos(videos.map(v => {
+      setVideos(prevVideos => prevVideos.map(v => {
         if (v._id === data.videoId) {
           return {
             ...v,
@@ -84,7 +93,7 @@ export function MyVideos() {
     };
 
     const handleProcessingFailed = (data: any) => {
-      setVideos(videos.map(v => v._id === data.videoId ? { ...v, status: 'failed', processingProgress: 0 } : v));
+      setVideos(prevVideos => prevVideos.map(v => v._id === data.videoId ? { ...v, status: 'failed', processingProgress: 0 } : v));
       addToast(`Video processing failed: ${data.error}`, 'error');
     };
 
@@ -96,6 +105,8 @@ export function MyVideos() {
     socketService.on('video-processing-failed', handleProcessingFailed);
 
     return () => {
+      // Cleanup
+      unsubscribe();
       socketService.off('video-uploaded', handleVideoUploaded);
       socketService.off('video-processing-start', handleProcessingStart);
       socketService.off('video-progress-update', handleProgressUpdate);
