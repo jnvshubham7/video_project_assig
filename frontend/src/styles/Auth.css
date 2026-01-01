@@ -140,7 +140,8 @@ button:disabled {
     padding: 20px 10px;
   }
 
-  .auth-card 30px 20px;
+  .auth-card {
+    padding: 30px 20px;
     max-width: 100%;
   }
 
@@ -160,7 +161,7 @@ button:disabled {
   }
 
   .auth-link {
-    font-size: 13
+    font-size: 13px;
     margin-bottom: 25px;
   }
 }
