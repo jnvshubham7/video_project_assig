@@ -234,10 +234,7 @@ exports.getVideoById = async (req, res) => {
     // Role-based access check
     const isOwner = video.userId._id.toString() === req.userId;
 
-    // Viewers can only see public videos
-    if (req.userRole === 'viewer' && !video.isPublic) {
-      return res.status(403).json({ error: 'Access denied to this video' });
-    }
+    // All organization members can see videos (no public/private restriction for org members)
 
     // Increment views only if not owner
     if (!isOwner) {
@@ -271,19 +268,13 @@ exports.deleteVideo = async (req, res) => {
     }
 
     // Check delete permission based on role
-    const isOwner = video.userId.toString() === req.userId;
     const isAdmin = req.userRole === 'admin';
+    const isEditor = req.userRole === 'editor';
 
-    if (!isAdmin && !isOwner) {
+    // Only admins and editors can delete videos in their organization
+    if (!isAdmin && !isEditor) {
       return res.status(403).json({ 
         error: 'You do not have permission to delete this video' 
-      });
-    }
-
-    // Viewers cannot delete
-    if (req.userRole === 'viewer') {
-      return res.status(403).json({ 
-        error: 'Viewers do not have permission to delete videos' 
       });
     }
 
@@ -327,19 +318,13 @@ exports.updateVideo = async (req, res) => {
     }
 
     // Check update permission based on role
-    const isOwner = video.userId.toString() === req.userId;
     const isAdmin = req.userRole === 'admin';
+    const isEditor = req.userRole === 'editor';
 
-    if (!isAdmin && !isOwner) {
+    // Only admins and editors can update videos in their organization
+    if (!isAdmin && !isEditor) {
       return res.status(403).json({ 
         error: 'You do not have permission to update this video' 
-      });
-    }
-
-    // Viewers cannot update
-    if (req.userRole === 'viewer') {
-      return res.status(403).json({ 
-        error: 'Viewers do not have permission to update videos' 
       });
     }
 

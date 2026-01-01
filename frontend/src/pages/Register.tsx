@@ -97,7 +97,7 @@ export function Register() {
       setOrganizations([orgWithRole]);
       localStorage.setItem('user', JSON.stringify(response.data.user));
       setTimeout(() => {
-        navigate('/login');
+        navigate('/');
       }, 1000);
     } catch (err: any) {
       const errorMessage = err.response?.data?.error || 'Registration failed';
