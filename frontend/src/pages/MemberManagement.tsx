@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { organizationAPI } from '../services/organizationService';
 import type { OrganizationMember } from '../services/organizationService';
 import { getAuthToken } from '../services/authService';
+import { useOrganization } from '../context/OrganizationContext';
 import '../styles/Auth.css';
 
 export function MemberManagement() {
   const navigate = useNavigate();
+  const { refreshOrganizations } = useOrganization();
   const [members, setMembers] = useState<OrganizationMember[]>([]);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -53,7 +55,10 @@ export function MemberManagement() {
       setInviteEmail('');
       setInviteRole('viewer');
       setTimeout(() => setSuccess(''), 3000);
+      
+      // Refresh members list and organizations
       fetchMembers();
+      await refreshOrganizations();
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to invite user');
     } finally {

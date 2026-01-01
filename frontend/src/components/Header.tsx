@@ -26,7 +26,14 @@ export function Header() {
         setUser(null);
       }
     }
-  }, [location]);
+    
+    // Ensure organizations are loaded in context and refreshed
+    if (token && organizationContext) {
+      organizationContext.refreshOrganizations().catch(err => {
+        console.error('Failed to refresh organizations on route change:', err);
+      });
+    }
+  }, [location, organizationContext]);
 
   // Listen to organization changes
   useEffect(() => {
@@ -100,7 +107,7 @@ export function Header() {
                 {currentOrganization && (
                   <div className="org-dropdown-container">
                     <button 
-                      className="org-info"
+                      className={`org-info ${showOrgDropdown ? 'active' : ''}`}
                       onClick={() => setShowOrgDropdown(!showOrgDropdown)}
                     >
                       🏢 {currentOrganization.name} ({currentOrganization.role})

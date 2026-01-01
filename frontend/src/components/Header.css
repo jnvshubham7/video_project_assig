@@ -139,9 +139,10 @@
   font-size: 9px;
   margin-left: 4px;
   transition: transform 0.2s;
+  display: inline-block;
 }
 
-.org-dropdown-container .org-info.active .dropdown-arrow {
+.org-info.active .dropdown-arrow {
   transform: rotate(180deg);
 }
 

@@ -363,16 +363,21 @@ exports.addMemberToCurrent = async (req, res) => {
       return res.status(400).json({ error: 'Invalid role. Must be admin, editor, or viewer' });
     }
 
+    // Validate organizationId
+    if (!organizationId) {
+      return res.status(400).json({ error: 'Organization ID is required' });
+    }
+
     // Find user by email
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(404).json({ error: 'User not found in system' });
+      return res.status(404).json({ error: `User with email '${email}' not found in system` });
     }
 
     // Check if user already member
     const existingMembership = await OrganizationMember.findOne({
       userId: user._id,
-      organizationId
+      organizationId: organizationId
     });
 
     if (existingMembership) {
@@ -382,11 +387,17 @@ exports.addMemberToCurrent = async (req, res) => {
     // Create membership
     const membership = new OrganizationMember({
       userId: user._id,
-      organizationId,
+      organizationId: organizationId,
       role
     });
 
     await membership.save();
+    
+    // Verify the membership was saved
+    const savedMembership = await OrganizationMember.findById(membership._id);
+    if (!savedMembership) {
+      throw new Error('Failed to save membership to database');
+    }
 
     res.status(201).json({
       message: 'User added to organization successfully',
@@ -421,9 +432,13 @@ exports.removeMemberFromCurrent = async (req, res) => {
       return res.status(400).json({ error: 'User ID is required' });
     }
 
+    if (!organizationId) {
+      return res.status(400).json({ error: 'Organization ID is required' });
+    }
+
     const membership = await OrganizationMember.findOne({
-      userId,
-      organizationId
+      userId: userId,
+      organizationId: organizationId
     });
 
     if (!membership) {
@@ -433,7 +448,7 @@ exports.removeMemberFromCurrent = async (req, res) => {
     // Prevent removing the last admin
     if (membership.role === 'admin') {
       const adminCount = await OrganizationMember.countDocuments({
-        organizationId,
+        organizationId: organizationId,
         role: 'admin'
       });
 
@@ -442,11 +457,16 @@ exports.removeMemberFromCurrent = async (req, res) => {
       }
     }
 
-    await OrganizationMember.deleteOne({
-      _id: membership._id
-    });
+    const deleteResult = await OrganizationMember.findByIdAndDelete(membership._id);
+    
+    if (!deleteResult) {
+      throw new Error('Failed to delete membership from database');
+    }
 
-    res.json({ message: 'User removed from organization successfully' });
+    res.json({ 
+      message: 'User removed from organization successfully',
+      removedUserId: userId
+    });
   } catch (error) {
     console.error('Remove member from current org error:', error);
     res.status(500).json({ error: error.message });
@@ -470,9 +490,13 @@ exports.updateMemberRoleInCurrent = async (req, res) => {
       return res.status(400).json({ error: 'Invalid role. Must be admin, editor, or viewer' });
     }
 
+    if (!organizationId) {
+      return res.status(400).json({ error: 'Organization ID is required' });
+    }
+
     const membership = await OrganizationMember.findOne({
-      userId,
-      organizationId
+      userId: userId,
+      organizationId: organizationId
     });
 
     if (!membership) {
@@ -482,7 +506,7 @@ exports.updateMemberRoleInCurrent = async (req, res) => {
     // Prevent downgrading the last admin
     if (membership.role === 'admin' && role !== 'admin') {
       const adminCount = await OrganizationMember.countDocuments({
-        organizationId,
+        organizationId: organizationId,
         role: 'admin'
       });
 
@@ -492,15 +516,21 @@ exports.updateMemberRoleInCurrent = async (req, res) => {
     }
 
     membership.role = role;
-    await membership.save();
+    const updatedMembership = await membership.save();
+    
+    // Verify the update was saved
+    const verifyUpdate = await OrganizationMember.findById(membership._id);
+    if (!verifyUpdate || verifyUpdate.role !== role) {
+      throw new Error('Failed to update membership role in database');
+    }
 
     res.json({
       message: 'Member role updated successfully',
       member: {
         _id: membership._id,
-        userId,
-        role: membership.role,
-        joinedAt: membership.joinedAt
+        userId: userId,
+        role: updatedMembership.role,
+        joinedAt: updatedMembership.joinedAt
       }
     });
   } catch (error) {

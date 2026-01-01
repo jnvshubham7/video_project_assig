@@ -13,12 +13,6 @@ const authMiddleware = (req, res, next) => {
     req.userEmail = decoded.email;
     req.organizationId = decoded.organizationId;
     
-    console.log('[AUTH MIDDLEWARE] Decoded token:', {
-      userId: req.userId,
-      email: req.userEmail,
-      organizationId: req.organizationId
-    });
-    
     next();
   } catch (error) {
     console.error('[AUTH MIDDLEWARE] Token verification failed:', error.message);

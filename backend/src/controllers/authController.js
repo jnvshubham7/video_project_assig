@@ -287,4 +287,28 @@ exports.getCurrentUser = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
-  
+
+// Get user's organizations (refresh endpoint)
+exports.getMyOrganizations = async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    const memberships = await OrganizationMember.find({ userId })
+      .populate('organizationId');
+
+    const organizations = memberships.map(m => ({
+      id: m.organizationId._id,
+      name: m.organizationId.name,
+      slug: m.organizationId.slug,
+      role: m.role
+    }));
+
+    res.json({
+      organizations,
+      count: organizations.length
+    });
+  } catch (error) {
+    console.error('Get my organizations error:', error);
+    res.status(500).json({ error: error.message });
+  }
+};

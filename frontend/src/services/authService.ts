@@ -66,6 +66,12 @@ export const authAPI = {
     });
   },
 
+  getMyOrganizations: () => {
+    return axios.get<{ organizations: (Organization & { role: 'admin' | 'editor' | 'viewer' })[]; count: number }>(`${API_BASE_URL}/auth/my-organizations`, {
+      headers: { 'Authorization': `Bearer ${getAuthToken()}` }
+    });
+  },
+
   switchOrganization: (organizationId: string) => {
     return axios.post<{ message: string; token: string; organization: Organization & { role: 'admin' | 'editor' | 'viewer' } }>(`${API_BASE_URL}/auth/switch-organization`, {
       organizationId

@@ -12,7 +12,7 @@ interface OrganizationContextType {
   currentOrganization: Organization | null;
   organizations: Organization[] | null;
   switchOrganization: (orgId: string) => Promise<void>;
-  refreshOrganizations: () => void;
+  refreshOrganizations: () => Promise<void>;
 }
 
 const OrganizationContext = createContext<OrganizationContextType | undefined>(undefined);
@@ -46,12 +46,55 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Auto-refresh organizations every 15 seconds when user is authenticated
+  useEffect(() => {
+    // Check if user is authenticated
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    const refreshInterval = setInterval(async () => {
+      try {
+        // Fetch fresh organizations from backend
+        const response = await authAPI.getMyOrganizations();
+        const freshOrganizations = response.data.organizations;
+        
+        if (freshOrganizations && freshOrganizations.length > 0) {
+          // Check if organizations have changed
+          const stored = getOrganizations();
+          const hasChanged = 
+            freshOrganizations.length !== stored.length ||
+            freshOrganizations.some(org => !stored.some(s => s.id === org.id));
+          
+          if (hasChanged) {
+            console.log('[ORG CONTEXT] Organizations updated:', freshOrganizations.length);
+            setOrganizations(freshOrganizations);
+            setOrgs(freshOrganizations);
+          }
+        }
+      } catch (error) {
+        console.error('Background organization refresh error:', error);
+      }
+    }, 15000); // Refresh every 15 seconds
+
+    return () => clearInterval(refreshInterval);
+  }, []);
+
   const switchOrganization = async (orgId: string) => {
     try {
       const response = await authAPI.switchOrganization(orgId);
       const newOrg = response.data.organization;
+      const newToken = response.data.token;
+      
+      // Update token in localStorage
+      if (newToken) {
+        localStorage.setItem('token', newToken);
+      }
+      
+      // Update current organization
       setCurrentOrg(newOrg);
       setOrganization(newOrg);
+      
+      // Dispatch event for listeners
       window.dispatchEvent(new Event('organizationChanged'));
     } catch (error) {
       console.error('Failed to switch organization:', error);
@@ -59,12 +102,29 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const refreshOrganizations = () => {
+  const refreshOrganizations = async () => {
     try {
-      const stored = getOrganizations();
-      setOrgs(stored && stored.length > 0 ? stored : null);
-    } catch {
-      setOrgs(null);
+      // Fetch fresh organizations from backend
+      const response = await authAPI.getMyOrganizations();
+      const freshOrganizations = response.data.organizations;
+      
+      console.log('[ORG CONTEXT] Manual refresh triggered:', freshOrganizations.length, 'organizations');
+      
+      if (freshOrganizations && freshOrganizations.length > 0) {
+        // Update localStorage and state
+        setOrganizations(freshOrganizations);
+        setOrgs(freshOrganizations);
+        
+        // If current org is not in the list anymore, switch to first one
+        if (currentOrganization && !freshOrganizations.some(org => org.id === currentOrganization.id)) {
+          const newCurrentOrg = freshOrganizations[0];
+          setCurrentOrg(newCurrentOrg);
+          setOrganization(newCurrentOrg);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to refresh organizations:', error);
+      throw error;
     }
   };
 
