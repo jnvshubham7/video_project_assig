@@ -58,19 +58,19 @@ class SocketService {
    */
   setupVideoListeners() {
     this.socket.on('video-processing-start', (data) => {
-      this.emit('processing-start', data);
+      this.emit('video-processing-start', data);
     });
 
     this.socket.on('video-progress-update', (data) => {
-      this.emit('progress-update', data);
+      this.emit('video-progress-update', data);
     });
 
     this.socket.on('video-processing-complete', (data) => {
-      this.emit('processing-complete', data);
+      this.emit('video-processing-complete', data);
     });
 
     this.socket.on('video-processing-failed', (data) => {
-      this.emit('processing-failed', data);
+      this.emit('video-processing-failed', data);
     });
   }
 

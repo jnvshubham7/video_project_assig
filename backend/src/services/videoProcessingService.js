@@ -291,15 +291,17 @@ class VideoProcessingService {
       await this.startProcessing(videoId);
 
       if (ioEmitter) {
-        ioEmitter('video-processing-start', { videoId });
+        ioEmitter('video-processing-start', { videoId, progress: 10, step: 'Starting video processing' });
       }
 
       // Simulate processing steps with progress
       const steps = [
-        { progress: 20, step: 'Validating format', delay: 1000 },
-        { progress: 40, step: 'Extracting metadata', delay: 1500 },
-        { progress: 60, step: 'Analyzing content sensitivity', delay: 2000 },
-        { progress: 80, step: 'Finalizing processing', delay: 1000 }
+        { progress: 20, step: 'Validating video format and codec', delay: 1000 },
+        { progress: 35, step: 'Extracting metadata and duration', delay: 1500 },
+        { progress: 50, step: 'Generating thumbnail preview', delay: 1200 },
+        { progress: 65, step: 'Analyzing content sensitivity', delay: 2000 },
+        { progress: 80, step: 'Optimizing video for streaming', delay: 1500 },
+        { progress: 95, step: 'Finalizing processing and indexing', delay: 1000 }
       ];
 
       for (const { progress, step, delay } of steps) {
@@ -320,6 +322,8 @@ class VideoProcessingService {
       if (ioEmitter) {
         ioEmitter('video-processing-complete', {
           videoId,
+          progress: 100,
+          step: 'Processing complete',
           status: processed.status,
           analysis: analysisResult
         });

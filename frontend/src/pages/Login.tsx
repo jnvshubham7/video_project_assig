@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authAPI, setAuthToken } from '../services/authService';
+import socketService from '../services/socketService';
 import '../styles/Auth.css';
 
 export function Login() {
@@ -60,6 +61,13 @@ export function Login() {
       setAuthToken(response.data.token);
       setOrganization(response.data.organization);
       localStorage.setItem('user', JSON.stringify(response.data.user));
+      
+      // Initialize Socket.io connection for real-time updates
+      try {
+        socketService.connect(response.data.organization.id);
+      } catch (socketError) {
+        console.error('Failed to initialize socket connection:', socketError);
+      }
       
       // Redirect to home after login
       navigate('/', { replace: true });
