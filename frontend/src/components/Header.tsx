@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { clearAuthToken, getAuthToken, getOrganization, getOrganizations } from '../services/authService';
+import { clearAuthToken, getAuthToken, getOrganization } from '../services/authService';
 import { useState, useEffect } from 'react';
 import { useOrganization } from '../context/OrganizationContext';
 import './Header.css';
@@ -39,7 +39,7 @@ export function Header() {
   useEffect(() => {
     const handleOrgChange = () => {
       // Refresh component state
-      const org = getOrganization();
+      getOrganization();
       window.location.reload(); // Full reload to refresh all data
     };
 

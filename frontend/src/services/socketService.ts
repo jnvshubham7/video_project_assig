@@ -1,8 +1,13 @@
-import { io } from 'socket.io-client';
+import { io, Socket } from 'socket.io-client';
 
 const API_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
 
 class SocketService {
+  socket: Socket | null;
+  connected: boolean;
+  listeners: Record<string, Array<(data?: any) => void>>;
+  currentOrganizationId: string | null | undefined;
+
   constructor() {
     this.socket = null;
     this.connected = false;
@@ -13,7 +18,7 @@ class SocketService {
   /**
    * Initialize Socket.io connection
    */
-  connect(organizationId) {
+  connect(organizationId?: string) {
     if (this.socket?.connected) {
       console.log('Socket already connected');
       return;
@@ -28,24 +33,26 @@ class SocketService {
         transports: ['websocket', 'polling']
       });
 
-      this.socket.on('connect', () => {
-        console.log('✓ Socket connected:', this.socket.id);
+      const sock = this.socket;
+
+      sock.on('connect', () => {
+        console.log('✓ Socket connected:', sock.id);
         this.connected = true;
-        
+
         // Join organization room for real-time updates
         if (organizationId) {
           this.currentOrganizationId = organizationId;
-          this.socket.emit('join-org', organizationId);
+          sock.emit('join-org', organizationId);
           console.log('[SOCKET] Joined organization room:', organizationId);
         }
       });
 
-      this.socket.on('disconnect', () => {
+      sock.on('disconnect', () => {
         console.log('✗ Socket disconnected');
         this.connected = false;
       });
 
-      this.socket.on('error', (error) => {
+      sock.on('error', (error: any) => {
         console.error('Socket error:', error);
       });
 
@@ -59,20 +66,20 @@ class SocketService {
   /**
    * Setup listeners for video processing events
    */
-  setupVideoListeners() {
-    this.socket.on('video-processing-start', (data) => {
+  setupVideoListeners(): void {
+    this.socket?.on('video-processing-start', (data: any) => {
       this.emit('video-processing-start', data);
     });
 
-    this.socket.on('video-progress-update', (data) => {
+    this.socket?.on('video-progress-update', (data: any) => {
       this.emit('video-progress-update', data);
     });
 
-    this.socket.on('video-processing-complete', (data) => {
+    this.socket?.on('video-processing-complete', (data: any) => {
       this.emit('video-processing-complete', data);
     });
 
-    this.socket.on('video-processing-failed', (data) => {
+    this.socket?.on('video-processing-failed', (data: any) => {
       this.emit('video-processing-failed', data);
     });
   }
@@ -80,7 +87,7 @@ class SocketService {
   /**
    * Register event listener
    */
-  on(event, callback) {
+  on(event: string, callback: (data?: any) => void): void {
     if (!this.listeners[event]) {
       this.listeners[event] = [];
     }
@@ -90,7 +97,7 @@ class SocketService {
   /**
    * Remove event listener
    */
-  off(event, callback) {
+  off(event: string, callback: (data?: any) => void): void {
     if (this.listeners[event]) {
       this.listeners[event] = this.listeners[event].filter(cb => cb !== callback);
     }
@@ -99,7 +106,7 @@ class SocketService {
   /**
    * Emit event to listeners
    */
-  emit(event, data) {
+  emit(event: string, data?: any): void {
     if (this.listeners[event]) {
       this.listeners[event].forEach(callback => callback(data));
     }
@@ -108,7 +115,7 @@ class SocketService {
   /**
    * Switch organization room - leave old room and join new one
    */
-  switchOrganizationRoom(newOrganizationId) {
+  switchOrganizationRoom(newOrganizationId?: string) {
     if (!this.socket?.connected) {
       console.log('[SOCKET] Socket not connected, reconnecting with new org:', newOrganizationId);
       // Socket is disconnected, just reconnect with new org
@@ -132,7 +139,7 @@ class SocketService {
   /**
    * Join organization room
    */
-  joinOrganization(organizationId) {
+  joinOrganization(organizationId: string) {
     if (this.socket?.connected) {
       this.currentOrganizationId = organizationId;
       this.socket.emit('join-org', organizationId);
@@ -143,7 +150,7 @@ class SocketService {
   /**
    * Leave organization room
    */
-  leaveOrganization(organizationId) {
+  leaveOrganization(organizationId: string) {
     if (this.socket?.connected) {
       this.socket.emit('leave-org', organizationId);
       console.log('[SOCKET] Left organization:', organizationId);
@@ -156,7 +163,7 @@ class SocketService {
   /**
    * Disconnect socket
    */
-  disconnect() {
+  disconnect(): void {
     if (this.socket) {
       this.socket.disconnect();
       this.connected = false;
@@ -166,8 +173,8 @@ class SocketService {
   /**
    * Check if connected
    */
-  isConnected() {
-    return this.connected && this.socket?.connected;
+  isConnected(): boolean {
+    return this.connected && !!this.socket?.connected;
   }
 }
 
