@@ -1,8 +1,8 @@
 const mongoose = require('mongoose');
 const { MongoMemoryServer } = require('mongodb-memory-server');
-const Organization = require('../../models/Organization');
-const OrganizationMember = require('../../models/OrganizationMember');
-const User = require('../../models/User');
+const Organization = require('../models/Organization');
+const OrganizationMember = require('../models/OrganizationMember');
+const User = require('../models/User');
 
 let mongoServer;
 
@@ -30,7 +30,7 @@ beforeEach(async () => {
 describe('Organization Management', () => {
   it('should create a new organization', async () => {
     const orgData = {
-      name: 'Test Organization',
+      name: 'Test Org',
       slug: 'test-org',
       description: 'A test organization'
     };
@@ -40,7 +40,7 @@ describe('Organization Management', () => {
 
     const savedOrg = await Organization.findById(org._id);
     expect(savedOrg).toBeDefined();
-    expect(savedOrg.name).toBe('Test Organization');
+    expect(savedOrg.name).toBe('Test Org');
     expect(savedOrg.slug).toBe('test-org');
   });
 
@@ -64,7 +64,7 @@ describe('Organization Management', () => {
 
   it('should find organization by slug', async () => {
     const org = new Organization({
-      name: 'Test Org',
+      name: 'Unique Slug',
       slug: 'unique-slug',
       description: 'Test'
     });
@@ -72,7 +72,7 @@ describe('Organization Management', () => {
 
     const found = await Organization.findOne({ slug: 'unique-slug' });
     expect(found).toBeDefined();
-    expect(found.name).toBe('Test Org');
+    expect(found.name).toBe('Unique Slug');
   });
 });
 
@@ -127,15 +127,15 @@ describe('Organization Members', () => {
       role: 'editor'
     });
 
-    // Both should exist with different roles (depends on schema constraints)
-    await membership2.save();
+    // Schema enforces unique (userId, organizationId) so second save should fail
+    let errorOccurred = false;
+    try {
+      await membership2.save();
+    } catch (err) {
+      errorOccurred = true;
+    }
 
-    const memberships = await OrganizationMember.find({
-      userId: user._id,
-      organizationId: organization._id
-    });
-
-    expect(memberships.length).toBe(2);
+    expect(errorOccurred).toBe(true);
   });
 
   it('should validate role values', () => {

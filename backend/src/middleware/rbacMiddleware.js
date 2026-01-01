@@ -114,7 +114,5 @@ const organizationMiddleware = async (req, res, next) => {
   }
 };
 
-module.exports = {
-  rbacMiddleware,
-  organizationMiddleware
-};
+module.exports = rbacMiddleware;
+module.exports.organizationMiddleware = organizationMiddleware;

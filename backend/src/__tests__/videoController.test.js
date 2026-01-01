@@ -1,9 +1,9 @@
 const mongoose = require('mongoose');
 const { MongoMemoryServer } = require('mongodb-memory-server');
-const Video = require('../../models/Video');
-const User = require('../../models/User');
-const Organization = require('../../models/Organization');
-const OrganizationMember = require('../../models/OrganizationMember');
+const Video = require('../models/Video');
+const User = require('../models/User');
+const Organization = require('../models/Organization');
+const OrganizationMember = require('../models/OrganizationMember');
 
 let mongoServer;
 
@@ -68,7 +68,7 @@ describe('Video Upload', () => {
     const videoData = {
       title: 'Test Video',
       description: 'Test description',
-      category: 'education',
+      category: 'educational',
       filename: 'testvideo.mp4',
       filepath: 'https://example.com/video.mp4',
       cloudinaryPublicId: 'video123',

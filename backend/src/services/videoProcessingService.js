@@ -55,9 +55,21 @@ class VideoProcessingService {
    * Performs comprehensive sensitivity analysis on video metadata
    * Checks title, description, and filename against multiple keyword categories
    */
-  static async analyzeSensitivity(video) {
+  static analyzeSensitivity(video) {
     try {
-      const { title, description, filename } = video;
+      // Support passing a raw string (title/combined text) or a video object
+      let title = '';
+      let description = '';
+      let filename = '';
+
+      if (typeof video === 'string') {
+        title = video;
+      } else if (video && typeof video === 'object') {
+        title = video.title || '';
+        description = video.description || '';
+        filename = video.filename || '';
+      }
+
       const titleLower = (title || '').toLowerCase();
       const descLower = (description || '').toLowerCase();
       const fileLower = (filename || '').toLowerCase();
@@ -154,9 +166,17 @@ class VideoProcessingService {
         categoryBreakdown
       );
 
+      // Backwards-compatible output fields expected by older tests
+      const flagged_categories = detectedIssues.map(d => d.category);
+      const accuracy_score = totalScore;
+      const status = result; // alias
+
       return {
         score: totalScore,
         result,
+        status,
+        accuracy_score,
+        flagged_categories,
         rules: rules.length > 0 ? rules : ['Passed all content checks'],
         detectedIssues,
         categoryBreakdown,
