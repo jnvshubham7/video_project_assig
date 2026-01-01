@@ -30,22 +30,7 @@ export function AllVideos() {
   // Check if user can edit videos (admin or editor role)
   const canEditVideos = currentOrganization?.role === 'admin' || currentOrganization?.role === 'editor';
   
-  // Get current user ID from token
-  const getCurrentUserId = (): string | null => {
-    const token = localStorage.getItem('token');
-    if (!token) return null;
-    try {
-      const base64Url = token.split('.')[1];
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const jsonPayload = decodeURIComponent(atob(base64).split('').map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
-      const decoded = JSON.parse(jsonPayload);
-      return decoded.userId;
-    } catch {
-      return null;
-    }
-  };
-  
-  const currentUserId = getCurrentUserId();
+  // No per-video ownership checks: org admins and editors can edit videos
 
   useEffect(() => {
     // Ensure we have fresh organization data with current role
@@ -103,11 +88,8 @@ export function AllVideos() {
     }
   };
 
-  const canEditVideo = (video: Video): boolean => {
-    if (!canEditVideos) return false;
-    // Admins can edit any video, editors can only edit their own
-    if (currentOrganization?.role === 'admin') return true;
-    return video.userId._id === currentUserId;
+  const canEditVideo = (): boolean => {
+    return !!canEditVideos;
   };
 
   const handleEdit = (video: Video) => {
@@ -204,7 +186,7 @@ export function AllVideos() {
       ) : (
         <>
           <div className="videos-grid">
-            {paginatedVideos.map(video => (
+            {paginatedVideos.map((video) => (
               <div key={video._id} className="video-card">
                 {editingId === video._id ? (
                   <div className="edit-form">
@@ -248,7 +230,7 @@ export function AllVideos() {
                         <span>👁️ {video.views} views</span>
                         <span>📅 {new Date(video.createdAt).toLocaleDateString()}</span>
                       </div>
-                      {canEditVideo(video) && (
+                      {canEditVideo() && (
                         <div className="video-actions">
                           <button 
                             onClick={() => handleEdit(video)}

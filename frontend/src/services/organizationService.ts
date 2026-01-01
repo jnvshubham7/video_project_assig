@@ -53,7 +53,7 @@ export const organizationAPI = {
   // Get organization details
   getOrganization: () => {
     return axios.get<{ organization: Organization }>(
-      `${API_BASE_URL}/org`,
+      `${API_BASE_URL}/org/`,
       { headers: getAuthHeader() }
     );
   },
@@ -61,7 +61,7 @@ export const organizationAPI = {
   // Update organization details (admin only)
   updateOrganization: (data: { name?: string; description?: string; settings?: Partial<OrganizationSettings> }) => {
     return axios.put<{ message: string; organization: Organization }>(
-      `${API_BASE_URL}/org`,
+      `${API_BASE_URL}/org/`,
       data,
       { headers: getAuthHeader() }
     );
