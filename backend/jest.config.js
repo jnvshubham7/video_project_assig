@@ -10,4 +10,7 @@ module.exports = {
   forceExit: true,
   clearMocks: true,
   resetMocks: true,
+  testTimeout: 30000,
+  bail: 0,
+  setupFilesAfterEnv: ['./jest-setup.js'],
 };

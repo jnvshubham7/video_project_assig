@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const { MongoMemoryServer } = require('mongodb-memory-server');
-const rbacMiddleware = require('../middleware/rbacMiddleware');
+const { rbacMiddleware } = require('../middleware/rbacMiddleware');
 const User = require('../models/User');
 const Organization = require('../models/Organization');
 const OrganizationMember = require('../models/OrganizationMember');
@@ -15,11 +15,13 @@ beforeAll(async () => {
     useNewUrlParser: true,
     useUnifiedTopology: true,
   });
-});
+}, 30000);
 
 afterAll(async () => {
   await mongoose.disconnect();
-  await mongoServer.stop();
+  if (mongoServer) {
+    await mongoServer.stop();
+  }
 });
 
 beforeEach(async () => {
