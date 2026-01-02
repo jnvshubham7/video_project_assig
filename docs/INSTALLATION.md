@@ -4,7 +4,29 @@
 - Node.js LTS (>=18)
 - npm
 - MongoDB (local or Atlas)
-- FFmpeg (for video processing) and ffprobe in PATH
+- FFmpeg (for video processing) and ffprobe in PATH — the backend includes `fluent-ffmpeg` plus the `ffmpeg-static` and `ffprobe-static` npm packages so a system-wide FFmpeg is optional. If you prefer to use the system binaries, ensure `ffmpeg` and `ffprobe` are available in your PATH or set `FFMPEG_PATH`/`FFPROBE_PATH` in the backend `.env`.
+
+### Installing system FFmpeg (optional)
+- Ubuntu/Debian:
+
+```bash
+sudo apt update
+sudo apt install -y ffmpeg
+```
+
+- macOS (Homebrew):
+
+```bash
+brew install ffmpeg
+```
+
+- Windows (Chocolatey):
+
+```powershell
+choco install ffmpeg -y
+```
+
+If you run the backend in a Docker container, either use a base image that includes ffmpeg (for example `jrottenberg/ffmpeg`) or install ffmpeg in your Dockerfile so the processing service can access the binary.
 
 ## Backend (d:/video_project/backend)
 1. cd backend

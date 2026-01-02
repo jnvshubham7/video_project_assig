@@ -12,6 +12,7 @@
 - Auth Service: JWT-based authentication, multi-org context
 - Video Service: Upload, enqueue processing, stream via Range requests
 - Processing Pipeline: Convert/scan videos, produce sensitivity analysis
+	- Implementation detail: the processing pipeline is implemented in `backend/src/services/videoProcessingService.js` using `fluent-ffmpeg` together with `ffmpeg-static` and `ffprobe-static` (static binaries). This enables transcoding, thumbnail extraction, and automated sensitivity analysis steps.
 - RBAC: Role-based middleware (admin/editor/viewer)
 
 ## Data Models (summary)
