@@ -12,9 +12,6 @@ RUN npm install
 # Runtime stage
 FROM node:22.21.1-alpine
 
-# Install ffmpeg and ffprobe from Alpine packages (avoids static binary segfault issues)
-RUN apk add --no-cache ffmpeg
-
 WORKDIR /app
 
 # Copy built node_modules from builder
@@ -27,8 +24,10 @@ COPY backend/package*.json ./
 # Expose port
 EXPOSE 5000
 
-# Set NODE_ENV for production
+# Set NODE_ENV for production and force static ffmpeg-static binaries
 ENV NODE_ENV=production
+ENV FFMPEG_PATH=/app/node_modules/ffmpeg-static/ffmpeg
+ENV FFPROBE_PATH=/app/node_modules/ffprobe-static/bin/linux/x64/ffprobe
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \

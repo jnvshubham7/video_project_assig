@@ -9,33 +9,27 @@ const ffmpeg = require('fluent-ffmpeg');
 const path = require('path');
 const { execSync } = require('child_process');
 
-// Configure FFmpeg paths: prioritize system binaries, fall back to static
+// Configure FFmpeg paths: use environment variables or static binaries
 function setupFFmpegPaths() {
   const ffmpegStatic = require('ffmpeg-static');
   const ffprobeStatic = require('ffprobe-static');
   
-  // Try to use system ffmpeg/ffprobe if available (recommended for production)
   try {
-    const ffmpegPath = process.env.FFMPEG_PATH || 'ffmpeg';
-    const ffprobePath = process.env.FFPROBE_PATH || 'ffprobe';
+    // Priority: environment variables (set in Dockerfile for Railway)
+    // Fallback: static binaries from npm packages
+    const ffmpegPath = process.env.FFMPEG_PATH || ffmpegStatic;
+    const ffprobePath = process.env.FFPROBE_PATH || ffprobeStatic.path;
     
-    // Test if system binaries are available
-    execSync(`${ffmpegPath} -version`, { stdio: 'ignore' });
-    execSync(`${ffprobePath} -version`, { stdio: 'ignore' });
-    
+    // Try to set paths and let fluent-ffmpeg handle validation
     ffmpeg.setFfmpegPath(ffmpegPath);
     ffmpeg.setFfprobePath(ffprobePath);
-    console.log('✓ Using system ffmpeg/ffprobe binaries');
+    
+    console.log('✓ Using static ffmpeg/ffprobe binaries');
+    console.log('  FFmpeg:', ffmpegPath);
+    console.log('  FFprobe:', ffprobePath);
   } catch (e) {
-    // Fall back to static binaries if system ones not found
-    try {
-      ffmpeg.setFfmpegPath(ffmpegStatic);
-      ffmpeg.setFfprobePath(ffprobeStatic.path);
-      console.log('✓ Using static ffmpeg/ffprobe binaries');
-    } catch (fallbackError) {
-      console.error('✗ FFmpeg configuration failed:', fallbackError.message);
-      throw new Error('FFmpeg and ffprobe are not available');
-    }
+    console.error('✗ FFmpeg configuration failed:', e.message);
+    throw new Error('FFmpeg and ffprobe are not available');
   }
 }
 
@@ -252,12 +246,110 @@ class VideoProcessingService {
 
   /**
    * Validate video format and codec using FFmpeg
+   * For remote URLs (Cloudinary), skip ffprobe and return basic validation
    * Falls back to basic file validation if ffprobe crashes (e.g., on Alpine/Railway with static binaries)
    */
   static async validateVideoFormat(filePath) {
     const fs = require('fs');
+    const path = require('path');
     
     return new Promise((resolve, reject) => {
+      // Define helper functions first
+      const validateRemoteUrl = () => {
+        try {
+          const url = filePath;
+          
+          // Extract filename/extension from URL
+          const urlPath = new URL(url).pathname;
+          const filename = urlPath.split('/').pop();
+          const ext = path.extname(filename).toLowerCase().substring(1);
+          
+          const supportedExts = ['mp4', 'webm', 'mkv', 'avi', 'mov', 'flv'];
+          
+          if (!supportedExts.includes(ext)) {
+            reject(new Error(`Unsupported file format: .${ext}`));
+            return;
+          }
+
+          // Return validation result for remote file
+          // Note: We can't check actual file size or codec without downloading the full file
+          resolve({
+            valid: true,
+            codec: 'unknown (remote URL)',
+            format: ext,
+            duration: 0,
+            size: 0, // Unknown
+            resolution: {
+              width: 0,
+              height: 0
+            },
+            frameRate: 'unknown',
+            validatedRemoteUrl: true
+          });
+        } catch (urlError) {
+          reject(new Error(`Remote URL validation error: ${urlError.message}`));
+        }
+      };
+
+      const validateWithFallback = () => {
+        try {
+          // Basic checks on file existence and size
+          if (!fs.existsSync(filePath)) {
+            reject(new Error('Video file not found'));
+            return;
+          }
+
+          const stats = fs.statSync(filePath);
+          const fileSize = stats.size;
+          
+          // Check file extension
+          const ext = path.extname(filePath).toLowerCase().substring(1);
+          const supportedExts = ['mp4', 'webm', 'mkv', 'avi', 'mov', 'flv'];
+          
+          if (!supportedExts.includes(ext)) {
+            reject(new Error(`Unsupported file format: .${ext}`));
+            return;
+          }
+
+          // Maximum file size: 2GB
+          const maxSize = 2 * 1024 * 1024 * 1024;
+          if (fileSize > maxSize) {
+            reject(new Error('Video file exceeds maximum size of 2GB'));
+            return;
+          }
+
+          // Minimum file size: 1KB (sanity check)
+          if (fileSize < 1024) {
+            reject(new Error('Video file is too small (< 1KB)'));
+            return;
+          }
+
+          // Return basic validation result
+          resolve({
+            valid: true,
+            codec: 'unknown (ffprobe unavailable)',
+            format: ext,
+            duration: 0, // Unable to determine
+            size: fileSize,
+            resolution: {
+              width: 0,
+              height: 0
+            },
+            frameRate: 'unknown',
+            validatedWithFallback: true
+          });
+        } catch (fallbackError) {
+          reject(new Error(`Fallback validation error: ${fallbackError.message}`));
+        }
+      };
+
+      // Check if it's a remote URL (Cloudinary, etc.)
+      if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+        console.log('[PROCESSING] Remote video URL detected - skipping ffprobe validation');
+        // For remote URLs, return basic validation
+        return validateRemoteUrl();
+      }
+
       // Set a timeout to catch ffprobe hangs/crashes (common with static binaries on Alpine)
       const timeout = setTimeout(() => {
         console.warn('[PROCESSING] FFmpeg validation timeout - using fallback validation');
@@ -333,62 +425,6 @@ class VideoProcessingService {
           reject(new Error(`Validation error: ${error.message}`));
         }
       });
-
-      // Fallback validation when ffprobe fails or times out
-      const validateWithFallback = () => {
-        try {
-          const fs = require('fs');
-          const path = require('path');
-          
-          // Basic checks on file existence and size
-          if (!fs.existsSync(filePath)) {
-            reject(new Error('Video file not found'));
-            return;
-          }
-
-          const stats = fs.statSync(filePath);
-          const fileSize = stats.size;
-          
-          // Check file extension
-          const ext = path.extname(filePath).toLowerCase().substring(1);
-          const supportedExts = ['mp4', 'webm', 'mkv', 'avi', 'mov', 'flv'];
-          
-          if (!supportedExts.includes(ext)) {
-            reject(new Error(`Unsupported file format: .${ext}`));
-            return;
-          }
-
-          // Maximum file size: 2GB
-          const maxSize = 2 * 1024 * 1024 * 1024;
-          if (fileSize > maxSize) {
-            reject(new Error('Video file exceeds maximum size of 2GB'));
-            return;
-          }
-
-          // Minimum file size: 1KB (sanity check)
-          if (fileSize < 1024) {
-            reject(new Error('Video file is too small (< 1KB)'));
-            return;
-          }
-
-          // Return basic validation result
-          resolve({
-            valid: true,
-            codec: 'unknown (ffprobe unavailable)',
-            format: ext,
-            duration: 0, // Unable to determine
-            size: fileSize,
-            resolution: {
-              width: 0,
-              height: 0
-            },
-            frameRate: 'unknown',
-            validatedWithFallback: true
-          });
-        } catch (fallbackError) {
-          reject(new Error(`Fallback validation error: ${fallbackError.message}`));
-        }
-      };
     });
   }
 
