@@ -6,12 +6,41 @@
 
 const Video = require('../models/Video');
 const ffmpeg = require('fluent-ffmpeg');
-const ffmpegStatic = require('ffmpeg-static');
-const ffprobeStatic = require('ffprobe-static');
+const path = require('path');
+const { execSync } = require('child_process');
 
-// Set ffmpeg and ffprobe paths from static packages
-ffmpeg.setFfmpegPath(ffmpegStatic);
-ffmpeg.setFfprobePath(ffprobeStatic.path);
+// Configure FFmpeg paths: prioritize system binaries, fall back to static
+function setupFFmpegPaths() {
+  const ffmpegStatic = require('ffmpeg-static');
+  const ffprobeStatic = require('ffprobe-static');
+  
+  // Try to use system ffmpeg/ffprobe if available (recommended for production)
+  try {
+    const ffmpegPath = process.env.FFMPEG_PATH || 'ffmpeg';
+    const ffprobePath = process.env.FFPROBE_PATH || 'ffprobe';
+    
+    // Test if system binaries are available
+    execSync(`${ffmpegPath} -version`, { stdio: 'ignore' });
+    execSync(`${ffprobePath} -version`, { stdio: 'ignore' });
+    
+    ffmpeg.setFfmpegPath(ffmpegPath);
+    ffmpeg.setFfprobePath(ffprobePath);
+    console.log('✓ Using system ffmpeg/ffprobe binaries');
+  } catch (e) {
+    // Fall back to static binaries if system ones not found
+    try {
+      ffmpeg.setFfmpegPath(ffmpegStatic);
+      ffmpeg.setFfprobePath(ffprobeStatic.path);
+      console.log('✓ Using static ffmpeg/ffprobe binaries');
+    } catch (fallbackError) {
+      console.error('✗ FFmpeg configuration failed:', fallbackError.message);
+      throw new Error('FFmpeg and ffprobe are not available');
+    }
+  }
+}
+
+// Initialize on module load
+setupFFmpegPaths();
 
 // Flagging threshold: score strictly greater than this marks video as 'flagged'
 const FLAG_THRESHOLD = 30;
@@ -223,13 +252,26 @@ class VideoProcessingService {
 
   /**
    * Validate video format and codec using FFmpeg
+   * Falls back to basic file validation if ffprobe crashes (e.g., on Alpine/Railway with static binaries)
    */
   static async validateVideoFormat(filePath) {
+    const fs = require('fs');
+    
     return new Promise((resolve, reject) => {
+      // Set a timeout to catch ffprobe hangs/crashes (common with static binaries on Alpine)
+      const timeout = setTimeout(() => {
+        console.warn('[PROCESSING] FFmpeg validation timeout - using fallback validation');
+        // Fallback: basic file validation
+        return validateWithFallback();
+      }, 5000);
+
       ffmpeg.ffprobe(filePath, (err, metadata) => {
+        clearTimeout(timeout);
+        
         if (err) {
-          reject(new Error(`Invalid video format: ${err.message}`));
-          return;
+          console.warn('[PROCESSING] FFmpeg validation failed, using fallback:', err.message);
+          // Fallback to basic file validation instead of rejecting
+          return validateWithFallback();
         }
 
         try {
@@ -291,6 +333,62 @@ class VideoProcessingService {
           reject(new Error(`Validation error: ${error.message}`));
         }
       });
+
+      // Fallback validation when ffprobe fails or times out
+      const validateWithFallback = () => {
+        try {
+          const fs = require('fs');
+          const path = require('path');
+          
+          // Basic checks on file existence and size
+          if (!fs.existsSync(filePath)) {
+            reject(new Error('Video file not found'));
+            return;
+          }
+
+          const stats = fs.statSync(filePath);
+          const fileSize = stats.size;
+          
+          // Check file extension
+          const ext = path.extname(filePath).toLowerCase().substring(1);
+          const supportedExts = ['mp4', 'webm', 'mkv', 'avi', 'mov', 'flv'];
+          
+          if (!supportedExts.includes(ext)) {
+            reject(new Error(`Unsupported file format: .${ext}`));
+            return;
+          }
+
+          // Maximum file size: 2GB
+          const maxSize = 2 * 1024 * 1024 * 1024;
+          if (fileSize > maxSize) {
+            reject(new Error('Video file exceeds maximum size of 2GB'));
+            return;
+          }
+
+          // Minimum file size: 1KB (sanity check)
+          if (fileSize < 1024) {
+            reject(new Error('Video file is too small (< 1KB)'));
+            return;
+          }
+
+          // Return basic validation result
+          resolve({
+            valid: true,
+            codec: 'unknown (ffprobe unavailable)',
+            format: ext,
+            duration: 0, // Unable to determine
+            size: fileSize,
+            resolution: {
+              width: 0,
+              height: 0
+            },
+            frameRate: 'unknown',
+            validatedWithFallback: true
+          });
+        } catch (fallbackError) {
+          reject(new Error(`Fallback validation error: ${fallbackError.message}`));
+        }
+      };
     });
   }
 
