@@ -17,3 +17,16 @@
 ## Tips
 - Use a process manager (PM2) or platform-managed container for backend.
 - Offload video processing to a job queue or separate worker to improve reliability.
+ - Ensure `ffmpeg`/`ffprobe` are available in the runtime environment. The backend includes `ffmpeg-static` and `ffprobe-static` which provide bundled binaries, but for production you may prefer a system-installed FFmpeg or a Docker image that includes ffmpeg for better performance and compatibility.
+
+Docker tip: use a base image that contains ffmpeg or install ffmpeg in your Dockerfile. Example Dockerfile snippet:
+
+```dockerfile
+FROM node:18
+RUN apt-get update && apt-get install -y ffmpeg
+WORKDIR /app
+COPY backend/package.json ./
+RUN npm install --production
+COPY backend ./
+CMD ["node", "src/server.js"]
+```

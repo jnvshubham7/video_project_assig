@@ -1,10 +1,18 @@
 /**
  * Video Streaming Service
  * Supports HTTP Range Requests for efficient video streaming
+ * Uses FFmpeg/ffprobe for metadata extraction
  */
 
 const fs = require('fs');
 const path = require('path');
+const ffmpeg = require('fluent-ffmpeg');
+const ffmpegStatic = require('ffmpeg-static');
+const ffprobeStatic = require('ffprobe-static');
+
+// Set ffmpeg and ffprobe paths from static packages
+ffmpeg.setFfmpegPath(ffmpegStatic);
+ffmpeg.setFfprobePath(ffprobeStatic.path);
 
 class VideoStreamingService {
   /**
@@ -167,20 +175,46 @@ class VideoStreamingService {
   }
 
   /**
-   * Get video metadata (duration, codec, etc.)
-   * Requires ffprobe to be installed
+   * Get video metadata (duration, codec, resolution, bitrate, etc.)
+   * Uses ffprobe via fluent-ffmpeg
    */
   static async getVideoMetadata(filePath) {
     try {
-      // This would use ffprobe in production
-      // For now, return basic file stats
-      const stats = fs.statSync(filePath);
-      return {
-        size: stats.size,
-        createdAt: stats.birthtime,
-        modifiedAt: stats.mtime,
-        duration: 'N/A' // Would need ffprobe
-      };
+      return new Promise((resolve, reject) => {
+        ffmpeg.ffprobe(filePath, (err, metadata) => {
+          if (err) {
+            console.error('FFprobe error:', err);
+            reject(new Error(`Failed to extract metadata: ${err.message}`));
+          }
+
+          try {
+            const format = metadata.format || {};
+            const stream = metadata.streams && metadata.streams[0] ? metadata.streams[0] : {};
+
+            resolve({
+              size: format.size,
+              duration: Math.round(format.duration || 0),
+              bitrate: format.bit_rate || 'N/A',
+              createdAt: format.tags?.creation_time || new Date(format.tags?.date || 0),
+              modifiedAt: new Date(),
+              codec: {
+                video: stream.codec_name || 'unknown',
+                profile: stream.profile || 'unknown',
+                level: stream.level || 'N/A'
+              },
+              resolution: {
+                width: stream.width || 'N/A',
+                height: stream.height || 'N/A'
+              },
+              frameRate: stream.r_frame_rate || 'N/A',
+              pixelFormat: stream.pix_fmt || 'N/A'
+            });
+          } catch (parseError) {
+            console.error('Error parsing metadata:', parseError);
+            reject(new Error(`Failed to parse metadata: ${parseError.message}`));
+          }
+        });
+      });
     } catch (error) {
       throw new Error(`Failed to get metadata: ${error.message}`);
     }

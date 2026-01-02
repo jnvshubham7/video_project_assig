@@ -8,3 +8,9 @@ Structure:
 - `/frontend` - React + Vite frontend
 
 Documentation: see `/docs` for Installation, API, User Manual, Architecture, Assumptions, Deployment, and Testing guides.
+
+## Links
+
+- Website: https://video-filter-iota.vercel.app/
+- GitHub: https://github.com/jnvshubham7/video_project_assig
+- YouTube Demo: https://www.youtube.com/watch?v=illcj5PTx3E
