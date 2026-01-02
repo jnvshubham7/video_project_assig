@@ -1,9 +1,17 @@
 /**
  * Video Processing Service
- * Handles video status pipeline and content sensitivity analysis
+ * Handles video status pipeline, validation, and content sensitivity analysis
+ * Uses FFmpeg for video format validation
  */
 
 const Video = require('../models/Video');
+const ffmpeg = require('fluent-ffmpeg');
+const ffmpegStatic = require('ffmpeg-static');
+const ffprobeStatic = require('ffprobe-static');
+
+// Set ffmpeg and ffprobe paths from static packages
+ffmpeg.setFfmpegPath(ffmpegStatic);
+ffmpeg.setFfprobePath(ffprobeStatic.path);
 
 // Flagging threshold: score strictly greater than this marks video as 'flagged'
 const FLAG_THRESHOLD = 30;
@@ -214,6 +222,79 @@ class VideoProcessingService {
 
 
   /**
+   * Validate video format and codec using FFmpeg
+   */
+  static async validateVideoFormat(filePath) {
+    return new Promise((resolve, reject) => {
+      ffmpeg.ffprobe(filePath, (err, metadata) => {
+        if (err) {
+          reject(new Error(`Invalid video format: ${err.message}`));
+          return;
+        }
+
+        try {
+          const format = metadata.format || {};
+          const videoStream = metadata.streams?.find(s => s.codec_type === 'video');
+
+          // Supported codecs
+          const supportedCodecs = ['h264', 'h265', 'hevc', 'vp8', 'vp9', 'av1'];
+          const supportedFormats = ['mp4', 'webm', 'mkv', 'avi', 'mov', 'flv'];
+
+          if (!videoStream) {
+            reject(new Error('No video stream found in file'));
+            return;
+          }
+
+          const codec = videoStream.codec_name || '';
+          const formatName = format.format_name || '';
+
+          // Check codec support
+          if (!supportedCodecs.includes(codec.toLowerCase())) {
+            reject(new Error(`Unsupported codec: ${codec}. Supported: ${supportedCodecs.join(', ')}`));
+            return;
+          }
+
+          // Check container format
+          const isSupported = supportedFormats.some(fmt => formatName.includes(fmt));
+          if (!isSupported) {
+            reject(new Error(`Unsupported format: ${formatName}. Supported: ${supportedFormats.join(', ')}`));
+            return;
+          }
+
+          // Validate duration
+          const duration = format.duration || 0;
+          if (duration <= 0) {
+            reject(new Error('Invalid video duration'));
+            return;
+          }
+
+          // Maximum file size: 2GB
+          const maxSize = 2 * 1024 * 1024 * 1024;
+          if (format.size > maxSize) {
+            reject(new Error('Video file exceeds maximum size of 2GB'));
+            return;
+          }
+
+          resolve({
+            valid: true,
+            codec: videoStream.codec_name,
+            format: formatName,
+            duration: Math.round(duration),
+            size: format.size,
+            resolution: {
+              width: videoStream.width,
+              height: videoStream.height
+            },
+            frameRate: videoStream.r_frame_rate
+          });
+        } catch (error) {
+          reject(new Error(`Validation error: ${error.message}`));
+        }
+      });
+    });
+  }
+
+  /**
    * Start processing a video - set status to 'processing'
    */
   static async startProcessing(videoId) {
@@ -322,6 +403,34 @@ class VideoProcessingService {
       if (ioEmitter) {
         console.log('[PROCESSING] Emitting video-processing-start');
         ioEmitter('video-processing-start', { videoId, progress: 10, step: 'Starting video processing' });
+      }
+
+      // Validate video format with FFmpeg
+      try {
+        console.log('[PROCESSING] Validating video format with FFmpeg');
+        const filePath = video.filepath || video.path || video.url;
+        const validation = await this.validateVideoFormat(filePath);
+        console.log('[PROCESSING] Video validation successful:', validation);
+        
+        // Update video with FFmpeg validation results
+        await Video.findByIdAndUpdate(
+          videoId,
+          {
+            $set: {
+              'ffmpegValidation.codec': validation.codec,
+              'ffmpegValidation.format': validation.format,
+              'ffmpegValidation.duration': validation.duration,
+              'ffmpegValidation.resolution': validation.resolution,
+              'ffmpegValidation.frameRate': validation.frameRate,
+              'ffmpegValidation.validatedAt': new Date()
+            }
+          },
+          { new: true }
+        );
+      } catch (validationError) {
+        console.error('[PROCESSING] FFmpeg validation failed:', validationError.message);
+        await this.failProcessing(videoId, `FFmpeg validation failed: ${validationError.message}`);
+        throw validationError;
       }
 
       // Simulate processing steps with progress
