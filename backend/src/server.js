@@ -16,15 +16,24 @@ const corsOptions = {
   origin: function(origin, callback) {
     const frontendUrl = process.env.FRONTEND_URL;
     
-    // List of allowed origins (for dev + known production URLs)
-    const allowedOrigins = [
-      'http://localhost:3000',
-      'http://localhost:5173',
-      'https://video-filter-iota.vercel.app',
-      'https://video-filter-i54p67agb-shubham-kumar-bhoktas-projects.vercel.app'
-    ];
-    
-    // Add FRONTEND_URL if set
+    // List of allowed origins is now driven by env var `ALLOWED_ORIGINS` (comma separated)
+    // Example: ALLOWED_ORIGINS="http://localhost:3000,http://localhost:5173,https://app.example.com"
+    const allowedOriginsEnv = process.env.ALLOWED_ORIGINS;
+    let allowedOrigins = [];
+
+    if (allowedOriginsEnv) {
+      allowedOrigins = allowedOriginsEnv.split(',').map(s => s.trim()).filter(Boolean);
+    } else {
+      // Fallback to sensible defaults when env var is not provided
+      allowedOrigins = [
+        'http://localhost:3000',
+        'http://localhost:5173',
+        'https://video-filter-iota.vercel.app',
+        'https://video-filter-i54p67agb-shubham-kumar-bhoktas-projects.vercel.app'
+      ];
+    }
+
+    // Also add FRONTEND_URL if set and not already present
     if (frontendUrl && !allowedOrigins.includes(frontendUrl)) {
       allowedOrigins.push(frontendUrl);
     }
